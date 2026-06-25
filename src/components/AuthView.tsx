@@ -11,7 +11,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'student' | 'admin'>('student');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -30,7 +29,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
           options: {
             data: {
               full_name: fullName,
-              role: role,
+              role: 'student',
             },
           },
         });
@@ -138,18 +137,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
                     onChange={(e) => setFullName(e.target.value)}
                   />
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">ประเภทผู้ใช้งาน</label>
-                <select
-                  className="form-input form-select"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as 'student' | 'admin')}
-                >
-                  <option value="student">นักเรียน / ผู้เรียน (Student)</option>
-                  <option value="admin">ผู้ดูแลระบบ / อาจารย์ (Admin)</option>
-                </select>
               </div>
             </>
           )}
