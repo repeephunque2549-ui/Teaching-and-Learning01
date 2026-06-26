@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
-import { ArrowLeft, Loader, CheckCircle2, XCircle, Play, FileText, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Loader, CheckCircle2, XCircle, Play, FileText, HelpCircle, RefreshCw, ExternalLink } from 'lucide-react';
 
 interface PageViewProps {
   slug: string;
@@ -18,6 +18,8 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
   const [submitting, setSubmitting] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
+  const isQuizStandalone = new URLSearchParams(window.location.search).get('quiz') === 'true';
+
   useEffect(() => {
     fetchPageAndSubmission();
   }, [slug, userId]);
@@ -26,29 +28,33 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     setLoading(true);
     try {
       // 1. Fetch the page content
-      const { data: pageData, error: pageError } = await supabase
+      const { data: pageDataArr, error: pageError } = await supabase
         .from('learning_pages')
         .select('*')
         .eq('slug', slug)
-        .single();
+        .order('created_at', { ascending: true })
+        .limit(1);
 
       if (pageError) throw pageError;
+      const pageData = pageDataArr && pageDataArr.length > 0 ? pageDataArr[0] : null;
       setPage(pageData);
 
       if (pageData) {
-        // 2. Fetch existing submission for this user on this page
+        // 2. Fetch existing submission for this user on this page (latest one if multiple exist)
         const { data: subData, error: subError } = await supabase
           .from('quiz_submissions')
           .select('*')
           .eq('page_id', pageData.id)
           .eq('user_id', userId)
-          .maybeSingle();
+          .order('created_at', { ascending: false })
+          .limit(1);
 
         if (subError) throw subError;
         
-        if (subData) {
-          setSubmission(subData);
-          setUserAnswers(subData.answers || {});
+        if (subData && subData.length > 0) {
+          const latestSubmission = subData[0];
+          setSubmission(latestSubmission);
+          setUserAnswers(latestSubmission.answers || {});
           setShowResults(true);
         } else {
           setSubmission(null);
@@ -115,19 +121,48 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
         total_questions: questions.length
       };
 
-      const { data, error } = await supabase
+      const { data: insertedArr, error } = await supabase
         .from('quiz_submissions')
         .insert([submissionData])
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
+
+      const data = insertedArr && insertedArr.length > 0 ? insertedArr[0] : null;
 
       setSubmission(data);
       setShowResults(true);
       alert(`คุณทำควิซเสร็จสิ้นแล้ว! คะแนนที่ได้: ${calculatedScore} / ${questions.length}`);
     } catch (err: any) {
       alert('เกิดข้อผิดพลาดในการส่งคำตอบ: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Retake quiz by deleting the submission
+  const handleRetakeQuiz = async () => {
+    if (!submission) return;
+    if (!window.confirm('คุณต้องการทำแบบทดสอบใหม่อีกครั้งใช่หรือไม่? คะแนนเดิมของคุณจะถูกลบออกจากระบบ')) {
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('quiz_submissions')
+        .delete()
+        .eq('page_id', page!.id)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      setSubmission(null);
+      setUserAnswers({});
+      setShowResults(false);
+      alert('ลบคะแนนเดิมเรียบร้อยแล้ว คุณสามารถทำแบบทดสอบใหม่ได้ทันที');
+    } catch (err: any) {
+      alert('เกิดข้อผิดพลาดในการลบคำตอบเดิม: ' + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +196,9 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       </div>
 
       <div className="text-center" style={{ marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '8px' }}>{page.title}</h1>
+        <h1 style={{ fontSize: '2.5rem', marginBottom: '8px' }}>
+          {isQuizStandalone ? `แบบทดสอบ: ${page.title}` : page.title}
+        </h1>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           <span>/{page.slug}</span>
           <span>•</span>
@@ -172,6 +209,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       {/* Render Blocks */}
       <div>
         {page.content && page.content.map((block) => {
+          if (isQuizStandalone && block.type !== 'quiz') return null;
           return (
             <div key={block.id} style={{ marginBottom: '32px' }}>
               {block.type === 'text' && (
@@ -225,107 +263,146 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
               )}
 
               {block.type === 'quiz' && (
-                <div className="quiz-card" style={{ boxShadow: 'var(--shadow-glow)' }}>
-                  <h3 style={{ fontSize: '1.3rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
-                    <HelpCircle size={20} style={{ color: 'var(--color-brand)' }} />
-                    แบบทดสอบท้ายบทเรียน
-                  </h3>
+                isQuizStandalone ? (
+                  <div className="quiz-card" style={{ boxShadow: 'var(--shadow-glow)' }}>
+                    <h3 style={{ fontSize: '1.3rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+                      <HelpCircle size={20} style={{ color: 'var(--color-brand)' }} />
+                      แบบทดสอบท้ายบทเรียน
+                    </h3>
 
-                  {showResults && (
-                    <div style={{
-                      background: 'var(--color-success-glow)',
-                      border: '1px solid rgba(16, 185, 129, 0.2)',
-                      padding: '16px',
-                      borderRadius: 'var(--radius-md)',
-                      marginBottom: '24px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}>
-                      <div>
-                        <strong style={{ color: 'var(--color-success)', display: 'block', fontSize: '1.1rem' }}>คุณได้ทำการทดสอบแล้ว</strong>
-                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>ส่งเมื่อ {new Date(submission?.created_at || '').toLocaleString('th-TH')}</span>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-success)' }}>
-                          {submission?.score} / {submission?.total_questions}
-                        </span>
-                        <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>คะแนนที่ได้</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {block.questions.map((q, qIndex) => {
-                    const selectedOpt = userAnswers[q.id];
-                    const isCorrect = selectedOpt === q.correctOptionIndex;
-
-                    return (
-                      <div key={q.id} className="question-item" style={{ marginBottom: '28px' }}>
-                        <p style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '8px' }}>
-                          ข้อที่ {qIndex + 1}. {q.questionText}
-                        </p>
-                        
-                        {q.options.map((opt, oIndex) => {
-                          let labelClass = 'option-label';
-                          let icon = null;
-
-                          if (showResults) {
-                            if (oIndex === q.correctOptionIndex) {
-                              labelClass += ' correct';
-                              icon = <CheckCircle2 size={16} style={{ color: 'var(--color-success)', marginLeft: 'auto' }} />;
-                            } else if (selectedOpt === oIndex && !isCorrect) {
-                              labelClass += ' incorrect';
-                              icon = <XCircle size={16} style={{ color: 'var(--color-error)', marginLeft: 'auto' }} />;
-                            }
-                          } else {
-                            if (selectedOpt === oIndex) {
-                              labelClass += ' selected';
-                            }
-                          }
-
-                          return (
-                            <div
-                              key={oIndex}
-                              className={labelClass}
-                              onClick={() => handleSelectOption(q.id, oIndex)}
-                              style={{ display: 'flex', alignItems: 'center' }}
+                    {showResults && (
+                      <div style={{ marginBottom: '24px' }}>
+                        <div style={{
+                          background: 'var(--color-success-glow)',
+                          border: '1px solid rgba(16, 185, 129, 0.2)',
+                          padding: '16px',
+                          borderRadius: 'var(--radius-md)',
+                          marginBottom: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div>
+                            <strong style={{ color: 'var(--color-success)', display: 'block', fontSize: '1.1rem' }}>คุณได้ทำการทดสอบแล้ว</strong>
+                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>ส่งเมื่อ {new Date(submission?.created_at || '').toLocaleString('th-TH')}</span>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-success)' }}>
+                              {submission?.score} / {submission?.total_questions}
+                            </span>
+                            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>คะแนนที่ได้</span>
+                          </div>
+                        </div>
+                        {userRole !== 'admin' && submission && (
+                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={handleRetakeQuiz}
+                              disabled={submitting}
+                              style={{ gap: '6px' }}
                             >
-                              <span style={{
-                                width: '22px',
-                                height: '22px',
-                                borderRadius: '50%',
-                                background: selectedOpt === oIndex ? 'var(--color-brand)' : 'var(--bg-primary)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
-                                border: '1px solid var(--border-glass)'
-                              }}>
-                                {String.fromCharCode(65 + oIndex)}
-                              </span>
-                              <span>{opt}</span>
-                              {icon}
-                            </div>
-                          );
-                        })}
+                              <RefreshCw size={14} className={submitting ? 'spin-anim' : ''} />
+                              ทำแบบทดสอบใหม่
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
+                    )}
 
-                  {!showResults && (
-                    <div style={{ textAlign: 'center', marginTop: '32px' }}>
-                      <button
-                        className="btn btn-primary"
-                        style={{ padding: '12px 36px', fontSize: '1rem' }}
-                        disabled={submitting}
-                        onClick={() => handleSubmitQuiz(block.id, block.questions)}
-                      >
-                        {submitting ? 'กำลังส่ง...' : 'ส่งคำตอบของควิซ'}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    {block.questions.map((q, qIndex) => {
+                      const selectedOpt = userAnswers[q.id];
+                      const isCorrect = selectedOpt === q.correctOptionIndex;
+
+                      return (
+                        <div key={q.id} className="question-item" style={{ marginBottom: '28px' }}>
+                          <p style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '8px' }}>
+                            ข้อที่ {qIndex + 1}. {q.questionText}
+                          </p>
+                          
+                          {q.options.map((opt, oIndex) => {
+                            let labelClass = 'option-label';
+                            let icon = null;
+
+                            if (showResults) {
+                              if (oIndex === q.correctOptionIndex) {
+                                labelClass += ' correct';
+                                icon = <CheckCircle2 size={16} style={{ color: 'var(--color-success)', marginLeft: 'auto' }} />;
+                              } else if (selectedOpt === oIndex && !isCorrect) {
+                                labelClass += ' incorrect';
+                                icon = <XCircle size={16} style={{ color: 'var(--color-error)', marginLeft: 'auto' }} />;
+                              }
+                            } else {
+                              if (selectedOpt === oIndex) {
+                                labelClass += ' selected';
+                              }
+                            }
+
+                            return (
+                              <div
+                                key={oIndex}
+                                className={labelClass}
+                                onClick={() => handleSelectOption(q.id, oIndex)}
+                                style={{ display: 'flex', alignItems: 'center' }}
+                              >
+                                <span style={{
+                                  width: '22px',
+                                  height: '22px',
+                                  borderRadius: '50%',
+                                  background: selectedOpt === oIndex ? 'var(--color-brand)' : 'var(--bg-primary)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  border: '1px solid var(--border-glass)'
+                                }}>
+                                  {String.fromCharCode(65 + oIndex)}
+                                </span>
+                                <span>{opt}</span>
+                                {icon}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+
+                    {!showResults && (
+                      <div style={{ textAlign: 'center', marginTop: '32px' }}>
+                        <button
+                          className="btn btn-primary"
+                          style={{ padding: '12px 36px', fontSize: '1rem' }}
+                          disabled={submitting}
+                          onClick={() => handleSubmitQuiz(block.id, block.questions)}
+                        >
+                          {submitting ? 'กำลังส่ง...' : 'ส่งคำตอบของควิซ'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="quiz-card" style={{ boxShadow: 'var(--shadow-glow)', textAlign: 'center', padding: '36px 20px' }}>
+                    <h3 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <HelpCircle size={22} style={{ color: 'var(--color-brand)' }} />
+                      แบบทดสอบท้ายบทเรียน
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '1rem' }}>
+                      {showResults 
+                        ? `คุณทำแบบทดสอบเสร็จสิ้นแล้ว คะแนนที่ได้: ${submission?.score} / ${submission?.total_questions}`
+                        : 'แบบทดสอบสำหรับประเมินความเข้าใจของคุณหลังจากเรียนรู้เนื้อหาเรียบร้อยแล้ว'}
+                    </p>
+                    <a
+                      href={`/course/${slug}?quiz=true`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none', padding: '12px 28px' }}
+                    >
+                      <ExternalLink size={16} />
+                      {showResults ? 'ดูผลคะแนน / ทำแบบทดสอบใหม่' : 'เริ่มทำแบบทดสอบ (เปิดแท็บใหม่)'}
+                    </a>
+                  </div>
+                )
               )}
             </div>
           );

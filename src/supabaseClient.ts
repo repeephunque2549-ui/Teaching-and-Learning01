@@ -61,6 +61,7 @@ export type LearningPage = {
   title: string;
   slug: string;
   content: ContentBlock[];
+  estimated_duration?: string;
   created_at: string;
 };
 

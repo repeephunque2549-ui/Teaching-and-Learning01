@@ -19,6 +19,33 @@ function App() {
   const [activePageId, setActivePageId] = useState<string | null>(null); // For editor
   const [activeSlug, setActiveSlug] = useState<string | null>(null); // For viewer
 
+  // Parse path on initial load and handle browser back/forward buttons
+  useEffect(() => {
+    const handleUrlRouting = () => {
+      const path = window.location.pathname;
+      if (path.startsWith('/course/')) {
+        const slug = path.replace('/course/', '');
+        if (slug) {
+          setActiveSlug(slug);
+          setCurrentView('viewer');
+        } else {
+          setCurrentView('dashboard');
+          setActiveSlug(null);
+        }
+      } else {
+        setCurrentView('dashboard');
+        setActiveSlug(null);
+      }
+    };
+
+    // Run on mount
+    handleUrlRouting();
+
+    // Listen to popstate (back/forward browser buttons)
+    window.addEventListener('popstate', handleUrlRouting);
+    return () => window.removeEventListener('popstate', handleUrlRouting);
+  }, []);
+
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setLoading(false);
@@ -188,7 +215,10 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
       {/* Top Navbar */}
       <header className="navbar">
         <div className="container navbar-container">
-          <div className="brand-logo" style={{ cursor: 'pointer' }} onClick={() => setCurrentView('dashboard')}>
+          <div className="brand-logo" style={{ cursor: 'pointer' }} onClick={() => {
+            setCurrentView('dashboard');
+            window.history.pushState({ view: 'dashboard' }, '', '/');
+          }}>
             <GraduationCap size={28} />
             <span>EduSphere</span>
           </div>
@@ -235,6 +265,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
               onViewPage={(slug) => {
                 setActiveSlug(slug);
                 setCurrentView('viewer');
+                window.history.pushState({ view: 'viewer', slug }, '', `/course/${slug}`);
               }}
             />
           ) : (
@@ -243,6 +274,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
               onViewPage={(slug) => {
                 setActiveSlug(slug);
                 setCurrentView('viewer');
+                window.history.pushState({ view: 'viewer', slug }, '', `/course/${slug}`);
               }}
             />
           )
@@ -254,6 +286,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
             onClose={() => {
               setCurrentView('dashboard');
               setActivePageId(null);
+              window.history.pushState({ view: 'dashboard' }, '', '/');
             }}
           />
         )}
@@ -266,6 +299,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
             onBack={() => {
               setCurrentView('dashboard');
               setActiveSlug(null);
+              window.history.pushState({ view: 'dashboard' }, '', '/');
             }}
           />
         )}
@@ -275,3 +309,4 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
 }
 
 export default App;
+

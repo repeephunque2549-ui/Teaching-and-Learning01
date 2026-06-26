@@ -150,7 +150,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
                       <span>คะแนนควิซ: <strong>{userSub.score}/{userSub.total_questions}</strong></span>
                     </div>
                   ) : (
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>ใช้เวลาเรียนประมาณ 10-15 นาที</span>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      ใช้เวลาเรียนประมาณ {page.estimated_duration || '10-15 นาที'}
+                    </span>
                   )}
 
                   <button

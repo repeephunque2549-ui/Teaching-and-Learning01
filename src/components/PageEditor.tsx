@@ -11,6 +11,7 @@ interface PageEditorProps {
 export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
+  const [estimatedDuration, setEstimatedDuration] = useState('10-15 นาที');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -36,6 +37,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
         setTitle(data.title);
         setSlug(data.slug);
         setBlocks(data.content || []);
+        setEstimatedDuration(data.estimated_duration || '10-15 นาที');
       }
     } catch (err: any) {
       alert('ไม่สามารถดึงข้อมูลหน้าบทเรียนได้: ' + err.message);
@@ -286,6 +288,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
         title,
         slug: slug.trim().toLowerCase(),
         content: blocks,
+        estimated_duration: estimatedDuration || '10-15 นาที',
         updated_at: new Date().toISOString()
       };
 
@@ -338,7 +341,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
           {pageId ? 'แก้ไขหน้าบทเรียน' : 'สร้างหน้าบทเรียนใหม่'}
         </h2>
         <form onSubmit={handleSave}>
-          <div className="grid grid-cols-2">
+          <div className="grid grid-cols-3">
             <div className="form-group">
               <label className="form-label">หัวข้อบทเรียน (Title) *</label>
               <input
@@ -363,6 +366,17 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
                   onChange={(e) => setSlug(e.target.value)}
                 />
               </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">เวลาที่ใช้เรียน *</label>
+              <input
+                type="text"
+                required
+                className="form-input"
+                placeholder="เช่น 10-15 นาที"
+                value={estimatedDuration}
+                onChange={(e) => setEstimatedDuration(e.target.value)}
+              />
             </div>
           </div>
 

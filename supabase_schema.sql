@@ -24,6 +24,7 @@ create table if not exists public.learning_pages (
   title text not null,
   slug text not null unique,
   content jsonb not null default '[]'::jsonb, -- Array of blocks: [{id, type: 'text'|'youtube'|'pdf'|'quiz', value: ...}]
+  estimated_duration text default '10-15 นาที',
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
@@ -94,6 +95,10 @@ create policy "Allow admins to view all submissions"
 create policy "Allow users to insert their own submissions"
   on public.quiz_submissions for insert
   with check (auth.uid() = user_id);
+
+create policy "Allow users to delete their own submissions"
+  on public.quiz_submissions for delete
+  using (auth.uid() = user_id);
 
 -- 4. Trigger to automatically create a profile when a new user signs up
 create or replace function public.handle_new_user()

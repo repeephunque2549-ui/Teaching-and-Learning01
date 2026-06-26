@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
-import { Plus, Edit2, Trash2, Calendar, BookOpen, Award, FileText, ExternalLink, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, BookOpen, Award, FileText, ExternalLink, RefreshCw, Clock } from 'lucide-react';
 
 interface AdminDashboardProps {
   onEditPage: (pageId: string | null) => void; // null for creating a new page
@@ -186,9 +186,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
                     </span>
                   </div>
                   <h3 style={{ fontSize: '1.25rem', marginBottom: '8px' }}>{page.title}</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    <Calendar size={14} />
-                    <span>สร้างเมื่อ: {new Date(page.created_at).toLocaleDateString('th-TH')}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      <Calendar size={14} />
+                      <span>สร้างเมื่อ: {new Date(page.created_at).toLocaleDateString('th-TH')}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      <Clock size={14} />
+                      <span>เวลาเรียน: {page.estimated_duration || '10-15 นาที'}</span>
+                    </div>
                   </div>
                 </div>
                 
