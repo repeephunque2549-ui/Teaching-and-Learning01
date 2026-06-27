@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
-import { ArrowLeft, Loader, CheckCircle2, XCircle, Play, FileText, HelpCircle, RefreshCw, ClipboardList, Code2, Terminal, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Loader, CheckCircle2, XCircle, Play, FileText, HelpCircle, RefreshCw, ClipboardList, Code2, Terminal, RotateCcw, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
 
 interface PageViewProps {
   slug: string;
@@ -26,6 +26,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     running: boolean;
     showOutput: boolean;
   }>>({});
+  const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
   const runIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const isQuizStandalone = showQuizMode;
@@ -33,6 +34,16 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
   useEffect(() => {
     fetchPageAndSubmission();
   }, [slug, userId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpandedBlockId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const fetchPageAndSubmission = async () => {
     setLoading(true);
@@ -231,6 +242,73 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
           updateCodeState(blockId, { running: false, output: '⏱️ หมดเวลา: การโหลดคอมไพเลอร์ Python ใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง' });
         }
       }, 15000);
+    } else if (language === 'php') {
+      // Run PHP completely in the browser via WebAssembly (php-wasm) in a sandboxed iframe to prevent server command errors
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+
+      iframe.srcdoc = `<!DOCTYPE html><html><head></head><body><script>
+        window.addEventListener('message', async (e) => {
+          if (e.data && e.data.type === 'run_php') {
+            try {
+              let logs = [];
+              const { PhpWeb } = await import('https://cdn.jsdelivr.net/npm/php-wasm/PhpWeb.mjs');
+              const php = new PhpWeb();
+              
+              // Capture stdout
+              php.addEventListener('output', (event) => {
+                logs.push(event.detail);
+              });
+              
+              php.addEventListener('error', (event) => {
+                logs.push('❌ ' + event.detail);
+              });
+
+              await php.run(e.data.code);
+              
+              let finalOut = logs.join('');
+              if (!finalOut) finalOut = '(ไม่มี output — ลองใช้ echo หรือ print เพื่อแสดงผลลัพธ์)';
+              parent.postMessage({ type: '__php_result__', output: finalOut, error: null }, '*');
+            } catch (err) {
+              parent.postMessage({ type: '__php_result__', output: null, error: err.toString() }, '*');
+            }
+          }
+        });
+        // Signal ready immediately
+        parent.postMessage({ type: '__php_ready__' }, '*');
+      <\/script></body></html>`;
+
+      const handleMessage = (event: MessageEvent) => {
+        if (!event.data) return;
+        if (event.data.type === '__php_ready__') {
+          iframe.contentWindow?.postMessage({ type: 'run_php', code: code }, '*');
+        } else if (event.data.type === '__php_result__') {
+          window.removeEventListener('message', handleMessage);
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+          runIframeRef.current = null;
+
+          if (event.data.error) {
+            updateCodeState(blockId, { running: false, output: '❌ ' + event.data.error });
+          } else {
+            updateCodeState(blockId, { running: false, output: event.data.output });
+          }
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+      document.body.appendChild(iframe);
+      runIframeRef.current = iframe;
+
+      // Timeout safety (give php-wasm 15s to download and run)
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          window.removeEventListener('message', handleMessage);
+          document.body.removeChild(iframe);
+          runIframeRef.current = null;
+          updateCodeState(blockId, { running: false, output: '⏱️ หมดเวลา: การโหลดคอมไพเลอร์ PHP ใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง' });
+        }
+      }, 15000);
     } else if (language === 'html' || language === 'css') {
       updateCodeState(blockId, { running: false, showOutput: true });
     } else {
@@ -247,7 +325,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       }
 
       // Bypass CORS via corsproxy.io
-      const targetUrl = 'http://coliru.stacked-crooked.com/compile';
+      const targetUrl = 'https://coliru.stacked-crooked.com/compile';
       const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
 
       fetch(proxyUrl, {
@@ -447,9 +525,10 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                 const cs = codeStates[block.id] || { code: block.value, output: '', running: false, showOutput: false };
                 const langLabel = block.language?.toUpperCase() || 'CODE';
                 const isHtmlOrCss = block.language === 'html' || block.language === 'css';
+                const isExpanded = expandedBlockId === block.id;
 
-                return (
-                  <div className="code-editor-block">
+                const renderBlockContent = (fullWidth = false) => (
+                  <div className={`code-editor-block ${fullWidth ? 'expanded-editor-block' : ''}`}>
                     {/* Header */}
                     <div className="code-editor-header">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -459,30 +538,41 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                           <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{block.description}</span>
                         )}
                       </div>
-                      <button
-                        className="btn btn-ghost btn-sm code-reset-btn"
-                        onClick={() => resetCode(block.id, block.value)}
-                        title="รีเซ็ตโค้ด"
-                        style={{ gap: '5px', fontSize: '0.8rem', color: 'var(--text-muted)' }}
-                      >
-                        <RotateCcw size={13} />
-                        รีเซ็ต
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button
+                          className="btn btn-ghost btn-sm code-reset-btn"
+                          onClick={() => resetCode(block.id, block.value)}
+                          title="รีเซ็ตโค้ด"
+                          style={{ gap: '5px', fontSize: '0.8rem', color: 'var(--text-muted)' }}
+                        >
+                          <RotateCcw size={13} />
+                          รีเซ็ต
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm code-reset-btn"
+                          onClick={() => setExpandedBlockId(isExpanded ? null : block.id)}
+                          title={isExpanded ? 'ย่อหน้าจอ' : 'ขยายหน้าจอ'}
+                          style={{ gap: '5px', fontSize: '0.8rem', color: 'var(--text-muted)' }}
+                        >
+                          {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                          {isExpanded ? 'ย่อ' : 'ขยาย'}
+                        </button>
+                      </div>
                     </div>
 
                     {/* Split View for HTML/CSS */}
                     {isHtmlOrCss ? (
-                      <div className="html-live-container">
+                      <div className="html-live-container" style={{ height: fullWidth ? 'calc(100vh - 46px)' : 'auto' }}>
                         <div className="html-editor-pane">
                           <Editor
-                            height="350px"
+                            height={fullWidth ? '100%' : '350px'}
                             language={block.language || 'html'}
                             value={cs.code}
                             theme="vs-dark"
                             onChange={(val) => updateCodeState(block.id, { code: val || '' })}
                             options={{
                               minimap: { enabled: false },
-                              fontSize: 14,
+                              fontSize: fullWidth ? 16 : 14,
                               lineNumbers: 'on',
                               scrollBeyondLastLine: false,
                               wordWrap: 'on',
@@ -495,33 +585,33 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                             }}
                           />
                         </div>
-                        <div className="html-preview-pane">
+                        <div className="html-preview-pane" style={{ height: fullWidth ? '100%' : 'auto' }}>
                           <div className="html-preview-header">LIVE PREVIEW</div>
                           <iframe
                             className="html-preview-iframe"
                             title="Live Code Preview"
-                            sandbox="allow-scripts"
+                            sandbox="allow-scripts allow-same-origin"
                             srcDoc={
                               block.language === 'html' 
                                 ? cs.code 
-                                : `<!DOCTYPE html><html><head><style>${cs.code}</style></head><body><div style="font-family:sans-serif;padding:20px;color:#fff;"><h1>CSS Preview Sandbox</h1><p>แก้ไขโค้ด CSS เพื่อเปลี่ยนหน้าตากล่องข้อความนี้</p><button style="padding:10px 20px;border-radius:6px;border:none;cursor:pointer;">ตัวอย่างปุ่มกด</button></div></body></html>`
+                                : `<!DOCTYPE html><html><head><style>${cs.code}</style></head><body><div style="font-family:sans-serif;padding:20px;color:#333;"><h1>CSS Preview Sandbox</h1><p>แก้ไขโค้ด CSS เพื่อเปลี่ยนหน้าตากล่องข้อความนี้</p><button style="padding:10px 20px;border-radius:6px;border:none;cursor:pointer;">ตัวอย่างปุ่มกด</button></div></body></html>`
                             }
                           />
                         </div>
                       </div>
                     ) : (
                       <>
-                        {/* Standard code blocks (JS, Python, C++, etc.) */}
-                        <div style={{ position: 'relative' }}>
+                        {/* Standard code blocks (JS, Python, C++, PHP, etc.) */}
+                        <div style={{ position: 'relative', flex: fullWidth ? 1 : 'unset', display: 'flex', flexDirection: 'column' }}>
                           <Editor
-                            height="300px"
+                            height={fullWidth ? '450px' : '300px'}
                             language={block.language || 'javascript'}
                             value={cs.code}
                             theme="vs-dark"
                             onChange={(val) => updateCodeState(block.id, { code: val || '' })}
                             options={{
                               minimap: { enabled: false },
-                              fontSize: 14,
+                              fontSize: fullWidth ? 16 : 14,
                               lineNumbers: 'on',
                               scrollBeyondLastLine: false,
                               wordWrap: 'on',
@@ -563,7 +653,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
                         {/* Output Panel */}
                         {cs.showOutput && (
-                          <div className="code-output-panel">
+                          <div className="code-output-panel" style={{ maxHeight: fullWidth ? '350px' : '300px' }}>
                             <div className="code-output-header">
                               <Terminal size={13} style={{ color: '#34d399' }} />
                               <span>Output</span>
@@ -578,6 +668,19 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                       </>
                     )}
                   </div>
+                );
+
+                return (
+                  <>
+                    {renderBlockContent(false)}
+                    {isExpanded && (
+                      <div className="fullscreen-editor-overlay">
+                        <div className="fullscreen-editor-modal">
+                          {renderBlockContent(true)}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 );
               })()}
 

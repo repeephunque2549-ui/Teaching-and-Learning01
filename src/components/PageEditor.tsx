@@ -7,6 +7,7 @@ import { ArrowLeft, Plus, Trash2, ArrowUp, ArrowDown, Type, Play, FileText, Chec
 const CODE_LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
   { value: 'python', label: 'Python' },
+  { value: 'php', label: 'PHP' },
   { value: 'java', label: 'Java' },
   { value: 'cpp', label: 'C++' },
   { value: 'c', label: 'C' },

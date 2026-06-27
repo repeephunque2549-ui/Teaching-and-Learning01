@@ -578,4 +578,53 @@ a:hover {
   background: #ffffff;
 }
 
+/* =============================================
+   FULLSCREEN CODE EDITOR MODAL
+   ============================================= */
+.fullscreen-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.fullscreen-editor-modal {
+  width: 100%;
+  max-width: 1400px;
+  height: calc(100vh - 48px);
+  background: #0d1117;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.expanded-editor-block {
+  height: 100% !important;
+  margin-bottom: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.expanded-editor-block .html-live-container {
+  flex: 1;
+}
+
+.expanded-editor-block .html-editor-pane {
+  height: 100%;
+}
+
+
 
