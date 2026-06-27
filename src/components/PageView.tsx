@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import Editor from '@monaco-editor/react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
-import { ArrowLeft, Loader, CheckCircle2, XCircle, Play, FileText, HelpCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Loader, CheckCircle2, XCircle, Play, FileText, HelpCircle, RefreshCw, ClipboardList, Code2, Terminal, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface PageViewProps {
   slug: string;
@@ -17,8 +18,17 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
   const [submission, setSubmission] = useState<QuizSubmission | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showQuizMode, setShowQuizMode] = useState(false);
+  // Code editor state: per block id -> { code, output, running, showOutput }
+  const [codeStates, setCodeStates] = useState<Record<string, {
+    code: string;
+    output: string;
+    running: boolean;
+    showOutput: boolean;
+  }>>({});
+  const runIframeRef = useRef<HTMLIFrameElement | null>(null);
 
-  const isQuizStandalone = new URLSearchParams(window.location.search).get('quiz') === 'true';
+  const isQuizStandalone = showQuizMode;
 
   useEffect(() => {
     fetchPageAndSubmission();
@@ -40,6 +50,20 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       setPage(pageData);
 
       if (pageData) {
+        // Initialize code states for code blocks
+        const initialCodeStates: Record<string, { code: string; output: string; running: boolean; showOutput: boolean }> = {};
+        (pageData.content || []).forEach((block: any) => {
+          if (block.type === 'code') {
+            initialCodeStates[block.id] = {
+              code: block.value || '',
+              output: '',
+              running: false,
+              showOutput: false
+            };
+          }
+        });
+        setCodeStates(initialCodeStates);
+
         // 2. Fetch existing submission for this user on this page (latest one if multiple exist)
         const { data: subData, error: subError } = await supabase
           .from('quiz_submissions')
@@ -68,6 +92,91 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     } finally {
       setLoading(false);
     }
+  };
+
+  // --- Code Editor helpers ---
+  const updateCodeState = (blockId: string, patch: Partial<{ code: string; output: string; running: boolean; showOutput: boolean }>) => {
+    setCodeStates(prev => ({ ...prev, [blockId]: { ...prev[blockId], ...patch } }));
+  };
+
+  const runCode = (blockId: string, language: string, _starterCode: string) => {
+    const state = codeStates[blockId];
+    if (!state) return;
+    const code = state.code;
+
+    updateCodeState(blockId, { running: true, showOutput: true, output: '' });
+
+    if (language !== 'javascript') {
+      setTimeout(() => {
+        updateCodeState(blockId, {
+          running: false,
+          output: `⚠️ การรันโค้ด ${language.toUpperCase()} ใน browser ยังไม่รองรับโดยตรงครับ\n\n✅ โค้ดของคุณ (${language}):\n${code}\n\n💡 เคล็ดลับ: ใช้ JavaScript เพื่อรันโค้ดได้ใน browser ได้เลยครับ!`
+        });
+      }, 400);
+      return;
+    }
+
+    // Run JavaScript via srcdoc + postMessage (safe for sandboxed iframes)
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.setAttribute('sandbox', 'allow-scripts');
+
+    const escapedCode = code.replace(/<\/script>/gi, '<\\/script>');
+    iframe.srcdoc = `<!DOCTYPE html><html><body><script>
+      var __logs = [];
+      console.log = function() {
+        var args = Array.prototype.slice.call(arguments);
+        __logs.push(args.map(function(a) {
+          try { return (typeof a === 'object') ? JSON.stringify(a, null, 2) : String(a); }
+          catch(e) { return String(a); }
+        }).join(' '));
+      };
+      console.error = function() {
+        var args = Array.prototype.slice.call(arguments);
+        __logs.push('\u274c ' + args.map(String).join(' '));
+      };
+      try {
+        ${escapedCode}
+        parent.postMessage({ type: '__code_result__', logs: __logs, error: null }, '*');
+      } catch(e) {
+        parent.postMessage({ type: '__code_result__', logs: __logs, error: e.toString() }, '*');
+      }
+    <\/script></body></html>`;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.data || event.data.type !== '__code_result__') return;
+      window.removeEventListener('message', handleMessage);
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+      runIframeRef.current = null;
+
+      const outputLines: string[] = event.data.logs || [];
+      const errorMsg: string | null = event.data.error || null;
+
+      let finalOutput = outputLines.join('\n');
+      if (errorMsg) finalOutput += (finalOutput ? '\n' : '') + '❌ ' + errorMsg;
+      if (!finalOutput) finalOutput = '(ไม่มี output — ลองใช้ console.log() เพื่อแสดงผลลัพธ์)';
+
+      updateCodeState(blockId, { running: false, output: finalOutput });
+    };
+
+    window.addEventListener('message', handleMessage);
+    document.body.appendChild(iframe);
+    runIframeRef.current = iframe;
+
+    // Timeout safety: if no message after 5s, abort
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        window.removeEventListener('message', handleMessage);
+        document.body.removeChild(iframe);
+        runIframeRef.current = null;
+        updateCodeState(blockId, { running: false, output: '⏱️ หมดเวลา: โค้ดใช้เวลานานเกินไป หรืออาจมี infinite loop' });
+      }
+    }, 5000);
+  };
+
+  const resetCode = (blockId: string, starterCode: string) => {
+    if (!window.confirm('รีเซ็ตโค้ดกลับเป็นตัวอย่างเดิมใช่หรือไม่?')) return;
+    updateCodeState(blockId, { code: starterCode, output: '', showOutput: false });
   };
 
   // Extract YouTube ID from various URL formats
@@ -189,10 +298,17 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '60px' }}>
       <div style={{ marginBottom: '24px' }}>
-        <button onClick={onBack} className="btn btn-secondary btn-sm" style={{ gap: '6px' }}>
-          <ArrowLeft size={16} />
-          กลับห้องเรียน
-        </button>
+        {isQuizStandalone ? (
+          <button onClick={() => setShowQuizMode(false)} className="btn btn-secondary btn-sm" style={{ gap: '6px' }}>
+            <ArrowLeft size={16} />
+            กลับบทเรียน
+          </button>
+        ) : (
+          <button onClick={onBack} className="btn btn-secondary btn-sm" style={{ gap: '6px' }}>
+            <ArrowLeft size={16} />
+            กลับห้องเรียน
+          </button>
+        )}
       </div>
 
       <div className="text-center" style={{ marginBottom: '40px' }}>
@@ -217,6 +333,99 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                   {block.value}
                 </div>
               )}
+
+              {block.type === 'code' && (() => {
+                const cs = codeStates[block.id] || { code: block.value, output: '', running: false, showOutput: false };
+                const langLabel = block.language?.toUpperCase() || 'CODE';
+                return (
+                  <div className="code-editor-block">
+                    {/* Header */}
+                    <div className="code-editor-header">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Code2 size={18} style={{ color: '#a78bfa' }} />
+                        <span className="code-lang-badge">{langLabel}</span>
+                        {block.description && (
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{block.description}</span>
+                        )}
+                      </div>
+                      <button
+                        className="btn btn-ghost btn-sm code-reset-btn"
+                        onClick={() => resetCode(block.id, block.value)}
+                        title="รีเซ็ตโค้ด"
+                        style={{ gap: '5px', fontSize: '0.8rem', color: 'var(--text-muted)' }}
+                      >
+                        <RotateCcw size={13} />
+                        รีเซ็ต
+                      </button>
+                    </div>
+
+                    {/* Monaco Editor */}
+                    <div style={{ position: 'relative' }}>
+                      <Editor
+                        height="300px"
+                        language={block.language || 'javascript'}
+                        value={cs.code}
+                        theme="vs-dark"
+                        onChange={(val) => updateCodeState(block.id, { code: val || '' })}
+                        options={{
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          lineNumbers: 'on',
+                          scrollBeyondLastLine: false,
+                          wordWrap: 'on',
+                          padding: { top: 12, bottom: 12 },
+                          fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+                          fontLigatures: true,
+                          cursorBlinking: 'smooth',
+                          renderLineHighlight: 'line',
+                          contextmenu: false,
+                        }}
+                      />
+                    </div>
+
+                    {/* Toolbar */}
+                    <div className="code-editor-toolbar">
+                      <button
+                        className="btn code-run-btn"
+                        disabled={cs.running}
+                        onClick={() => runCode(block.id, block.language || 'javascript', block.value)}
+                        style={{ gap: '8px' }}
+                      >
+                        {cs.running ? (
+                          <><Loader size={15} className="spin-anim" /> กำลังรัน...</>
+                        ) : (
+                          <><Play size={15} fill="currentColor" /> รันโค้ด ▶</>
+                        )}
+                      </button>
+                      {cs.showOutput && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => updateCodeState(block.id, { showOutput: !cs.showOutput })}
+                          style={{ gap: '5px', fontSize: '0.82rem', marginLeft: 'auto', color: 'var(--text-muted)' }}
+                        >
+                          {cs.showOutput ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          Output
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Output Panel */}
+                    {cs.showOutput && (
+                      <div className="code-output-panel">
+                        <div className="code-output-header">
+                          <Terminal size={13} style={{ color: '#34d399' }} />
+                          <span>Output</span>
+                        </div>
+                        <pre className="code-output-content">
+                          {cs.output || (
+                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>กำลังรัน...</span>
+                          )}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {block.type === 'youtube' && (
                 <div className="card-glass" style={{ padding: '20px' }}>
@@ -391,16 +600,14 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                         ? `คุณทำแบบทดสอบเสร็จสิ้นแล้ว คะแนนที่ได้: ${submission?.score} / ${submission?.total_questions}`
                         : 'แบบทดสอบสำหรับประเมินความเข้าใจของคุณหลังจากเรียนรู้เนื้อหาเรียบร้อยแล้ว'}
                     </p>
-                    <a
-                      href={`/course/${slug}?quiz=true`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => setShowQuizMode(true)}
                       className="btn btn-primary"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none', padding: '12px 28px' }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 28px', cursor: 'pointer', border: 'none' }}
                     >
-                      <ExternalLink size={16} />
-                      {showResults ? 'ดูผลคะแนน / ทำแบบทดสอบใหม่' : 'เริ่มทำแบบทดสอบ (เปิดแท็บใหม่)'}
-                    </a>
+                      <ClipboardList size={16} />
+                      {showResults ? 'ดูผลคะแนน / ทำแบบทดสอบใหม่' : 'เริ่มทำแบบทดสอบ'}
+                    </button>
                   </div>
                 )
               )}

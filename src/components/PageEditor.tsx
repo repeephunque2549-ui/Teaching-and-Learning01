@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import Editor from '@monaco-editor/react';
 import { supabase } from '../supabaseClient';
 import type { ContentBlock, QuizQuestion } from '../supabaseClient';
-import { ArrowLeft, Plus, Trash2, ArrowUp, ArrowDown, Type, Play, FileText, CheckSquare, Save, Upload, Loader } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ArrowUp, ArrowDown, Type, Play, FileText, CheckSquare, Save, Upload, Loader, Code2 } from 'lucide-react';
+
+const CODE_LANGUAGES = [
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'python', label: 'Python' },
+  { value: 'java', label: 'Java' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'c', label: 'C' },
+  { value: 'html', label: 'HTML' },
+  { value: 'css', label: 'CSS' },
+  { value: 'sql', label: 'SQL' },
+  { value: 'typescript', label: 'TypeScript' },
+  { value: 'go', label: 'Go' },
+];
 
 interface PageEditorProps {
   pageId: string | null; // null means create new page
@@ -105,6 +119,25 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
       ]
     };
     setBlocks([...blocks, newBlock]);
+  };
+
+  const addCodeBlock = () => {
+    const newBlock: ContentBlock = {
+      id: crypto.randomUUID(),
+      type: 'code',
+      language: 'javascript',
+      value: '// เขียนโค้ดตัวอย่างที่นี่\nconsole.log("Hello, World!");',
+      description: 'ลองเขียนโค้ดและแก้ไขตัวอย่างด้านล่างนี้'
+    };
+    setBlocks([...blocks, newBlock]);
+  };
+
+  const updateCodeBlockField = (id: string, field: 'language' | 'value' | 'description', val: string) => {
+    setBlocks(blocks.map(b =>
+      b.id === id && b.type === 'code'
+        ? { ...b, [field]: val } as ContentBlock
+        : b
+    ));
   };
 
   // Block modification
@@ -405,6 +438,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
                         {block.type === 'youtube' && <Play size={18} style={{ color: '#f87171' }} />}
                         {block.type === 'pdf' && <FileText size={18} style={{ color: '#fbbf24' }} />}
                         {block.type === 'quiz' && <CheckSquare size={18} style={{ color: '#34d399' }} />}
+                        {block.type === 'code' && <Code2 size={18} style={{ color: '#a78bfa' }} />}
                         <strong style={{ textTransform: 'uppercase', fontSize: '0.85rem' }}>
                           บล็อกที่ {index + 1}: {block.type}
                         </strong>
@@ -452,6 +486,60 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
                           value={block.value}
                           onChange={(e) => updateBlockValue(block.id, e.target.value)}
                         />
+                      </div>
+                    )}
+
+                    {block.type === 'code' && (
+                      <div>
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                          <div className="form-group" style={{ flex: 1, minWidth: '180px', marginBottom: 0 }}>
+                            <label className="form-label">ภาษาโปรแกรม</label>
+                            <select
+                              className="form-input"
+                              value={block.language}
+                              onChange={(e) => updateCodeBlockField(block.id, 'language', e.target.value)}
+                            >
+                              {CODE_LANGUAGES.map(lang => (
+                                <option key={lang.value} value={lang.value}>{lang.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="form-group" style={{ flex: 2, minWidth: '240px', marginBottom: 0 }}>
+                            <label className="form-label">คำอธิบาย (แสดงด้านบน editor)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="เช่น ลองแก้โค้ดนี้ให้พิมพ์ชื่อของคุณ"
+                              value={block.description || ''}
+                              onChange={(e) => updateCodeBlockField(block.id, 'description', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">โค้ดตัวอย่าง (นักเรียนจะเห็นโค้ดนี้เป็นค่าเริ่มต้น)</label>
+                          <div style={{
+                            borderRadius: '10px',
+                            overflow: 'hidden',
+                            border: '1px solid var(--border-glass)',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                          }}>
+                            <Editor
+                              height="260px"
+                              language={block.language}
+                              value={block.value}
+                              theme="vs-dark"
+                              onChange={(val) => updateCodeBlockField(block.id, 'value', val || '')}
+                              options={{
+                                minimap: { enabled: false },
+                                fontSize: 14,
+                                lineNumbers: 'on',
+                                scrollBeyondLastLine: false,
+                                wordWrap: 'on',
+                                padding: { top: 12 }
+                              }}
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
 
@@ -625,6 +713,10 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
               <button type="button" className="btn btn-secondary" onClick={addQuizBlock}>
                 <CheckSquare size={16} />
                 + เพิ่มแบบสอบถาม/ควิซ
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={addCodeBlock} style={{ borderColor: 'rgba(167,139,250,0.4)', color: '#a78bfa' }}>
+                <Code2 size={16} />
+                + เพิ่ม Code Editor
               </button>
             </div>
           </div>

@@ -47,7 +47,8 @@ export type ContentBlock =
   | { id: string; type: 'text'; value: string }
   | { id: string; type: 'youtube'; value: string }
   | { id: string; type: 'pdf'; value: string; file_name?: string }
-  | { id: string; type: 'quiz'; questions: QuizQuestion[] };
+  | { id: string; type: 'quiz'; questions: QuizQuestion[] }
+  | { id: string; type: 'code'; language: string; value: string; description?: string };
 
 export type QuizQuestion = {
   id: string;
