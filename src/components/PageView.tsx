@@ -106,73 +106,182 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
     updateCodeState(blockId, { running: true, showOutput: true, output: '' });
 
-    if (language !== 'javascript') {
+    if (language === 'javascript') {
+      // Run JavaScript via srcdoc + postMessage (safe for sandboxed iframes)
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.setAttribute('sandbox', 'allow-scripts');
+
+      const escapedCode = code.replace(/<\/script>/gi, '<\\/script>');
+      iframe.srcdoc = `<!DOCTYPE html><html><body><script>
+        var __logs = [];
+        console.log = function() {
+          var args = Array.prototype.slice.call(arguments);
+          __logs.push(args.map(function(a) {
+            try { return (typeof a === 'object') ? JSON.stringify(a, null, 2) : String(a); }
+            catch(e) { return String(a); }
+          }).join(' '));
+        };
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          __logs.push('\u274c ' + args.map(String).join(' '));
+        };
+        try {
+          ${escapedCode}
+          parent.postMessage({ type: '__code_result__', logs: __logs, error: null }, '*');
+        } catch(e) {
+          parent.postMessage({ type: '__code_result__', logs: __logs, error: e.toString() }, '*');
+        }
+      <\/script></body></html>`;
+
+      const handleMessage = (event: MessageEvent) => {
+        if (!event.data || event.data.type !== '__code_result__') return;
+        window.removeEventListener('message', handleMessage);
+        if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        runIframeRef.current = null;
+
+        const outputLines: string[] = event.data.logs || [];
+        const errorMsg: string | null = event.data.error || null;
+
+        let finalOutput = outputLines.join('\n');
+        if (errorMsg) finalOutput += (finalOutput ? '\n' : '') + '❌ ' + errorMsg;
+        if (!finalOutput) finalOutput = '(ไม่มี output — ลองใช้ console.log() เพื่อแสดงผลลัพธ์)';
+
+        updateCodeState(blockId, { running: false, output: finalOutput });
+      };
+
+      window.addEventListener('message', handleMessage);
+      document.body.appendChild(iframe);
+      runIframeRef.current = iframe;
+
+      // Timeout safety
       setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          window.removeEventListener('message', handleMessage);
+          document.body.removeChild(iframe);
+          runIframeRef.current = null;
+          updateCodeState(blockId, { running: false, output: '⏱️ หมดเวลา: โค้ดใช้เวลานานเกินไป หรืออาจมี infinite loop' });
+        }
+      }, 5000);
+    } else if (language === 'python') {
+      // Run Python completely in the browser via Pyodide in a sandboxed iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+
+      iframe.srcdoc = [
+        '<!DOCTYPE html><html><head></head><body><scr' + 'ipt>',
+        'function initPyodide() {',
+        '  var s = document.createElement("script");',
+        '  s.src = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js";',
+        '  s.onload = function() { parent.postMessage({ type: "__python_ready__" }, "*"); };',
+        '  s.onerror = function() { parent.postMessage({ type: "__python_result__", output: null, error: "ไม่สามารถโหลด Pyodide ได้" }, "*"); };',
+        '  document.head.appendChild(s);',
+        '}',
+        'window.addEventListener("message", async function(e) {',
+        '  if (e.data && e.data.type === "run_python") {',
+        '    try {',
+        '      var logs = [];',
+        '      var pyodide = await loadPyodide({',
+        '        indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/",',
+        '        stdout: function(text) { logs.push(text); },',
+        '        stderr: function(text) { logs.push("\\u274c " + text); }',
+        '      });',
+        '      await pyodide.runPythonAsync(e.data.code);',
+        '      var finalOut = logs.join("\\n");',
+        '      if (!finalOut) finalOut = "(ไม่มี output — ลองใช้ print() เพื่อแสดงผลลัพธ์)";',
+        '      parent.postMessage({ type: "__python_result__", output: finalOut, error: null }, "*");',
+        '    } catch (err) {',
+        '      parent.postMessage({ type: "__python_result__", output: null, error: err.toString() }, "*");',
+        '    }',
+        '  }',
+        '});',
+        'initPyodide();',
+        '</scr' + 'ipt></body></html>'
+      ].join('\n');
+
+
+      const handleMessage = (event: MessageEvent) => {
+        if (!event.data) return;
+        if (event.data.type === '__python_ready__') {
+          iframe.contentWindow?.postMessage({ type: 'run_python', code: code }, '*');
+        } else if (event.data.type === '__python_result__') {
+          window.removeEventListener('message', handleMessage);
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+          runIframeRef.current = null;
+
+          if (event.data.error) {
+            updateCodeState(blockId, { running: false, output: '❌ ' + event.data.error });
+          } else {
+            updateCodeState(blockId, { running: false, output: event.data.output });
+          }
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+      document.body.appendChild(iframe);
+      runIframeRef.current = iframe;
+
+      // Timeout safety (give Pyodide 15s to download and run)
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          window.removeEventListener('message', handleMessage);
+          document.body.removeChild(iframe);
+          runIframeRef.current = null;
+          updateCodeState(blockId, { running: false, output: '⏱️ หมดเวลา: การโหลดคอมไพเลอร์ Python ใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง' });
+        }
+      }, 15000);
+    } else if (language === 'html' || language === 'css') {
+      updateCodeState(blockId, { running: false, showOutput: true });
+    } else {
+      // Run C++, Java, Go via Coliru with corsproxy.io proxy wrapper to prevent CORS "Failed to fetch" issues
+      let command = 'python3 main.cpp';
+      if (language === 'cpp') {
+        command = 'g++ -O3 main.cpp && ./a.out';
+      } else if (language === 'c') {
+        command = 'gcc -O3 main.cpp && ./a.out';
+      } else if (language === 'java') {
+        command = 'cat <<\'EOF\' > Main.java\n' + code + '\nEOF\njavac Main.java && java Main';
+      } else if (language === 'go') {
+        command = 'cat <<\'EOF\' > main.go\n' + code + '\nEOF\ngo run main.go';
+      }
+
+      // Bypass CORS via corsproxy.io
+      const targetUrl = 'http://coliru.stacked-crooked.com/compile';
+      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+      fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          cmd: command,
+          src: code
+        })
+      })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP Error ${res.status}`);
+        }
+        return res.text();
+      })
+      .then(output => {
+        let out = output;
+        if (!out) out = '(โปรแกรมทำงานสำเร็จ แต่ไม่มีข้อมูลแสดงผลออกทางหน้าจอ)';
+        updateCodeState(blockId, { running: false, output: out });
+      })
+      .catch(err => {
         updateCodeState(blockId, {
           running: false,
-          output: `⚠️ การรันโค้ด ${language.toUpperCase()} ใน browser ยังไม่รองรับโดยตรงครับ\n\n✅ โค้ดของคุณ (${language}):\n${code}\n\n💡 เคล็ดลับ: ใช้ JavaScript เพื่อรันโค้ดได้ใน browser ได้เลยครับ!`
+          output: `❌ เกิดข้อผิดพลาดในการเชื่อมต่อเครื่องเซิร์ฟเวอร์รันโค้ด:\n${err.message}\n\n💡 หมายเหตุ: การเชื่อมต่อผ่าน API ล้มเหลว หรือติดปัญหาเครือข่ายอินเทอร์เน็ต`
         });
-      }, 400);
-      return;
+      });
     }
-
-    // Run JavaScript via srcdoc + postMessage (safe for sandboxed iframes)
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.setAttribute('sandbox', 'allow-scripts');
-
-    const escapedCode = code.replace(/<\/script>/gi, '<\\/script>');
-    iframe.srcdoc = `<!DOCTYPE html><html><body><script>
-      var __logs = [];
-      console.log = function() {
-        var args = Array.prototype.slice.call(arguments);
-        __logs.push(args.map(function(a) {
-          try { return (typeof a === 'object') ? JSON.stringify(a, null, 2) : String(a); }
-          catch(e) { return String(a); }
-        }).join(' '));
-      };
-      console.error = function() {
-        var args = Array.prototype.slice.call(arguments);
-        __logs.push('\u274c ' + args.map(String).join(' '));
-      };
-      try {
-        ${escapedCode}
-        parent.postMessage({ type: '__code_result__', logs: __logs, error: null }, '*');
-      } catch(e) {
-        parent.postMessage({ type: '__code_result__', logs: __logs, error: e.toString() }, '*');
-      }
-    <\/script></body></html>`;
-
-    const handleMessage = (event: MessageEvent) => {
-      if (!event.data || event.data.type !== '__code_result__') return;
-      window.removeEventListener('message', handleMessage);
-      if (document.body.contains(iframe)) document.body.removeChild(iframe);
-      runIframeRef.current = null;
-
-      const outputLines: string[] = event.data.logs || [];
-      const errorMsg: string | null = event.data.error || null;
-
-      let finalOutput = outputLines.join('\n');
-      if (errorMsg) finalOutput += (finalOutput ? '\n' : '') + '❌ ' + errorMsg;
-      if (!finalOutput) finalOutput = '(ไม่มี output — ลองใช้ console.log() เพื่อแสดงผลลัพธ์)';
-
-      updateCodeState(blockId, { running: false, output: finalOutput });
-    };
-
-    window.addEventListener('message', handleMessage);
-    document.body.appendChild(iframe);
-    runIframeRef.current = iframe;
-
-    // Timeout safety: if no message after 5s, abort
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        window.removeEventListener('message', handleMessage);
-        document.body.removeChild(iframe);
-        runIframeRef.current = null;
-        updateCodeState(blockId, { running: false, output: '⏱️ หมดเวลา: โค้ดใช้เวลานานเกินไป หรืออาจมี infinite loop' });
-      }
-    }, 5000);
   };
+
+
+
 
   const resetCode = (blockId: string, starterCode: string) => {
     if (!window.confirm('รีเซ็ตโค้ดกลับเป็นตัวอย่างเดิมใช่หรือไม่?')) return;
@@ -337,6 +446,8 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
               {block.type === 'code' && (() => {
                 const cs = codeStates[block.id] || { code: block.value, output: '', running: false, showOutput: false };
                 const langLabel = block.language?.toUpperCase() || 'CODE';
+                const isHtmlOrCss = block.language === 'html' || block.language === 'css';
+
                 return (
                   <div className="code-editor-block">
                     {/* Header */}
@@ -359,69 +470,112 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                       </button>
                     </div>
 
-                    {/* Monaco Editor */}
-                    <div style={{ position: 'relative' }}>
-                      <Editor
-                        height="300px"
-                        language={block.language || 'javascript'}
-                        value={cs.code}
-                        theme="vs-dark"
-                        onChange={(val) => updateCodeState(block.id, { code: val || '' })}
-                        options={{
-                          minimap: { enabled: false },
-                          fontSize: 14,
-                          lineNumbers: 'on',
-                          scrollBeyondLastLine: false,
-                          wordWrap: 'on',
-                          padding: { top: 12, bottom: 12 },
-                          fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-                          fontLigatures: true,
-                          cursorBlinking: 'smooth',
-                          renderLineHighlight: 'line',
-                          contextmenu: false,
-                        }}
-                      />
-                    </div>
-
-                    {/* Toolbar */}
-                    <div className="code-editor-toolbar">
-                      <button
-                        className="btn code-run-btn"
-                        disabled={cs.running}
-                        onClick={() => runCode(block.id, block.language || 'javascript', block.value)}
-                        style={{ gap: '8px' }}
-                      >
-                        {cs.running ? (
-                          <><Loader size={15} className="spin-anim" /> กำลังรัน...</>
-                        ) : (
-                          <><Play size={15} fill="currentColor" /> รันโค้ด ▶</>
-                        )}
-                      </button>
-                      {cs.showOutput && (
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => updateCodeState(block.id, { showOutput: !cs.showOutput })}
-                          style={{ gap: '5px', fontSize: '0.82rem', marginLeft: 'auto', color: 'var(--text-muted)' }}
-                        >
-                          {cs.showOutput ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                          Output
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Output Panel */}
-                    {cs.showOutput && (
-                      <div className="code-output-panel">
-                        <div className="code-output-header">
-                          <Terminal size={13} style={{ color: '#34d399' }} />
-                          <span>Output</span>
+                    {/* Split View for HTML/CSS */}
+                    {isHtmlOrCss ? (
+                      <div className="html-live-container">
+                        <div className="html-editor-pane">
+                          <Editor
+                            height="350px"
+                            language={block.language || 'html'}
+                            value={cs.code}
+                            theme="vs-dark"
+                            onChange={(val) => updateCodeState(block.id, { code: val || '' })}
+                            options={{
+                              minimap: { enabled: false },
+                              fontSize: 14,
+                              lineNumbers: 'on',
+                              scrollBeyondLastLine: false,
+                              wordWrap: 'on',
+                              padding: { top: 12, bottom: 12 },
+                              fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+                              fontLigatures: true,
+                              cursorBlinking: 'smooth',
+                              renderLineHighlight: 'line',
+                              contextmenu: false,
+                            }}
+                          />
                         </div>
-                        <pre className="code-output-content">
-                          {cs.output || (
-                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>กำลังรัน...</span>
-                          )}
-                        </pre>
+                        <div className="html-preview-pane">
+                          <div className="html-preview-header">LIVE PREVIEW</div>
+                          <iframe
+                            className="html-preview-iframe"
+                            title="Live Code Preview"
+                            sandbox="allow-scripts"
+                            srcDoc={
+                              block.language === 'html' 
+                                ? cs.code 
+                                : `<!DOCTYPE html><html><head><style>${cs.code}</style></head><body><div style="font-family:sans-serif;padding:20px;color:#fff;"><h1>CSS Preview Sandbox</h1><p>แก้ไขโค้ด CSS เพื่อเปลี่ยนหน้าตากล่องข้อความนี้</p><button style="padding:10px 20px;border-radius:6px;border:none;cursor:pointer;">ตัวอย่างปุ่มกด</button></div></body></html>`
+                            }
+                          />
+                        </div>
                       </div>
+                    ) : (
+                      <>
+                        {/* Standard code blocks (JS, Python, C++, etc.) */}
+                        <div style={{ position: 'relative' }}>
+                          <Editor
+                            height="300px"
+                            language={block.language || 'javascript'}
+                            value={cs.code}
+                            theme="vs-dark"
+                            onChange={(val) => updateCodeState(block.id, { code: val || '' })}
+                            options={{
+                              minimap: { enabled: false },
+                              fontSize: 14,
+                              lineNumbers: 'on',
+                              scrollBeyondLastLine: false,
+                              wordWrap: 'on',
+                              padding: { top: 12, bottom: 12 },
+                              fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+                              fontLigatures: true,
+                              cursorBlinking: 'smooth',
+                              renderLineHighlight: 'line',
+                              contextmenu: false,
+                            }}
+                          />
+                        </div>
+
+                        {/* Toolbar */}
+                        <div className="code-editor-toolbar">
+                          <button
+                            className="btn code-run-btn"
+                            disabled={cs.running}
+                            onClick={() => runCode(block.id, block.language || 'javascript', block.value)}
+                            style={{ gap: '8px' }}
+                          >
+                            {cs.running ? (
+                              <><Loader size={15} className="spin-anim" /> กำลังรัน...</>
+                            ) : (
+                              <><Play size={15} fill="currentColor" /> รันโค้ด ▶</>
+                            )}
+                          </button>
+                          {cs.showOutput && (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => updateCodeState(block.id, { showOutput: !cs.showOutput })}
+                              style={{ gap: '5px', fontSize: '0.82rem', marginLeft: 'auto', color: 'var(--text-muted)' }}
+                            >
+                              {cs.showOutput ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                              Output
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Output Panel */}
+                        {cs.showOutput && (
+                          <div className="code-output-panel">
+                            <div className="code-output-header">
+                              <Terminal size={13} style={{ color: '#34d399' }} />
+                              <span>Output</span>
+                            </div>
+                            <pre className="code-output-content">
+                              {cs.output || (
+                                <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>กำลังรัน...</span>
+                              )}
+                            </pre>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 );
