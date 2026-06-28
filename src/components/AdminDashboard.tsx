@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
-import { Plus, Edit2, Trash2, Calendar, BookOpen, Award, FileText, ExternalLink, RefreshCw, Clock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, BookOpen, Award, FileText, ExternalLink, RefreshCw, Clock, Search } from 'lucide-react';
 
 interface AdminDashboardProps {
   onEditPage: (pageId: string | null) => void; // null for creating a new page
@@ -13,6 +13,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
   const [submissions, setSubmissions] = useState<QuizSubmission[]>([]);
   const [activeTab, setActiveTab] = useState<'pages' | 'submissions'>('pages');
   const [loading, setLoading] = useState(false);
+
+  // Search & Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPageId, setSelectedPageId] = useState('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
 
   const fetchData = async () => {
     setLoading(true);
@@ -77,6 +82,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
       alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
     }
   };
+
+  const filteredSubmissions = submissions.filter(sub => {
+    const name = (sub.profiles?.full_name || '').toLowerCase();
+    const pageTitle = (sub.learning_pages?.title || '').toLowerCase();
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = name.includes(query) || pageTitle.includes(query);
+    const matchesPage = selectedPageId === 'all' || sub.page_id === selectedPageId;
+    return matchesSearch && matchesPage;
+  }).sort((a, b) => {
+    if (sortBy === 'newest') {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    } else if (sortBy === 'oldest') {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    } else if (sortBy === 'highest') {
+      return b.score - a.score;
+    } else if (sortBy === 'lowest') {
+      return a.score - b.score;
+    }
+    return 0;
+  });
 
   return (
     <div>
@@ -238,67 +263,172 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
         )
       ) : (
         /* Submissions Tab */
-        <div className="card-glass" style={{ padding: '0px', overflow: 'hidden' }}>
-          {submissions.length === 0 ? (
-            <div className="text-center" style={{ padding: '60px 20px' }}>
-              <Award size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
-              <h3>ยังไม่มีนักเรียนส่งคำตอบ</h3>
-              <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-                เมื่อนักเรียนทำแบบทดสอบและส่งคำตอบ คะแนนของพวกเขาจะมาแสดงที่นี่
-              </p>
-            </div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                textAlign: 'left',
-                color: 'var(--text-primary)'
-              }}>
-                <thead>
-                  <tr style={{
-                    borderBottom: '1px solid var(--border-glass)',
-                    background: 'rgba(255,255,255,0.02)'
-                  }}>
-                    <th style={{ padding: '16px 24px' }}>ชื่อผู้ส่ง</th>
-                    <th style={{ padding: '16px 24px' }}>บทเรียน</th>
-                    <th style={{ padding: '16px 24px', textAlign: 'center' }}>คะแนนที่ได้</th>
-                    <th style={{ padding: '16px 24px' }}>วันที่ส่ง</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {submissions.map(sub => (
-                    <tr key={sub.id} style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                      <td style={{ padding: '16px 24px' }}>
-                        <div>
-                          <strong style={{ display: 'block' }}>{sub.profiles?.full_name || 'ไม่ระบุชื่อ'}</strong>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{sub.profiles?.role || 'student'}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px 24px' }}>
-                        {sub.learning_pages?.title || 'บทเรียนที่ถูกลบไปแล้ว'}
-                      </td>
-                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                        <span style={{
-                          background: sub.score === sub.total_questions ? 'var(--color-success-glow)' : 'rgba(255,255,255,0.05)',
-                          color: sub.score === sub.total_questions ? 'var(--color-success)' : '#ffffff',
-                          padding: '6px 12px',
-                          borderRadius: '20px',
-                          fontWeight: 700,
-                          fontSize: '0.95rem'
-                        }}>
-                          {sub.score} / {sub.total_questions}
-                        </span>
-                      </td>
-                      <td style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        {new Date(sub.created_at).toLocaleString('th-TH')}
-                      </td>
-                    </tr>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {submissions.length > 0 && (
+            <div className="card-glass" style={{
+              display: 'flex',
+              gap: '16px',
+              padding: '16px 20px',
+              flexWrap: 'wrap',
+              alignItems: 'center'
+            }}>
+              {/* Search box */}
+              <div style={{ position: 'relative', flex: '1', minWidth: '240px' }}>
+                <Search size={18} style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-muted)'
+                }} />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อผู้ส่ง หรือชื่อบทเรียน..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 38px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--border-glass)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'var(--transition-smooth)'
+                  }}
+                />
+              </div>
+
+              {/* Lesson Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '200px' }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>บทเรียน:</span>
+                <select
+                  value={selectedPageId}
+                  onChange={(e) => setSelectedPageId(e.target.value)}
+                  style={{
+                    flex: '1',
+                    padding: '8px 12px',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid var(--border-glass)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="all">ทั้งหมด</option>
+                  {pages.map(page => (
+                    <option key={page.id} value={page.id}>{page.title}</option>
                   ))}
-                </tbody>
-              </table>
+                </select>
+              </div>
+
+              {/* Sort selection */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>เรียงลำดับ:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  style={{
+                    flex: '1',
+                    padding: '8px 12px',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid var(--border-glass)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="newest">ใหม่สุด</option>
+                  <option value="oldest">เก่าสุด</option>
+                  <option value="highest">คะแนนสูงสุด</option>
+                  <option value="lowest">คะแนนต่ำสุด</option>
+                </select>
+              </div>
             </div>
           )}
+
+          <div className="card-glass" style={{ padding: '0px', overflow: 'hidden' }}>
+            {submissions.length === 0 ? (
+              <div className="text-center" style={{ padding: '60px 20px' }}>
+                <Award size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+                <h3>ยังไม่มีนักเรียนส่งคำตอบ</h3>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  เมื่อนักเรียนทำแบบทดสอบและส่งคำตอบ คะแนนของพวกเขาจะมาแสดงที่นี่
+                </p>
+              </div>
+            ) : filteredSubmissions.length === 0 ? (
+              <div className="text-center" style={{ padding: '60px 20px' }}>
+                <Search size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+                <h3>ไม่พบผลคะแนนที่ตรงตามเงื่อนไข</h3>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '4px', marginBottom: '16px' }}>
+                  ลองเปลี่ยนคำค้นหาหรือล้างตัวกรองเพื่อแสดงข้อมูลทั้งหมด
+                </p>
+                <button className="btn btn-secondary btn-sm" onClick={() => {
+                  setSearchQuery('');
+                  setSelectedPageId('all');
+                  setSortBy('newest');
+                }}>
+                  ล้างตัวกรอง
+                </button>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  textAlign: 'left',
+                  color: 'var(--text-primary)'
+                }}>
+                  <thead>
+                    <tr style={{
+                      borderBottom: '1px solid var(--border-glass)',
+                      background: 'rgba(255,255,255,0.02)'
+                    }}>
+                      <th style={{ padding: '16px 24px' }}>ชื่อผู้ส่ง</th>
+                      <th style={{ padding: '16px 24px' }}>บทเรียน</th>
+                      <th style={{ padding: '16px 24px', textAlign: 'center' }}>คะแนนที่ได้</th>
+                      <th style={{ padding: '16px 24px' }}>วันที่ส่ง</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSubmissions.map(sub => (
+                      <tr key={sub.id} style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                        <td style={{ padding: '16px 24px' }}>
+                          <div>
+                            <strong style={{ display: 'block' }}>{sub.profiles?.full_name || 'ไม่ระบุชื่อ'}</strong>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{sub.profiles?.role || 'student'}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px 24px' }}>
+                          {sub.learning_pages?.title || 'บทเรียนที่ถูกลบไปแล้ว'}
+                        </td>
+                        <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                          <span style={{
+                            background: sub.score === sub.total_questions ? 'var(--color-success-glow)' : 'rgba(255,255,255,0.05)',
+                            color: sub.score === sub.total_questions ? 'var(--color-success)' : '#ffffff',
+                            padding: '6px 12px',
+                            borderRadius: '20px',
+                            fontWeight: 700,
+                            fontSize: '0.95rem'
+                          }}>
+                            {sub.score} / {sub.total_questions}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                          {new Date(sub.created_at).toLocaleString('th-TH')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

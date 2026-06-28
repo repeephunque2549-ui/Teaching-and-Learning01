@@ -6,6 +6,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { PageEditor } from './components/PageEditor';
 import { StudentDashboard } from './components/StudentDashboard';
 import { PageView } from './components/PageView';
+import { ProfileView } from './components/ProfileView';
 import { LogOut, User, ShieldAlert, GraduationCap, Loader } from 'lucide-react';
 
 function App() {
@@ -14,8 +15,8 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   // View state routing:
-  // 'dashboard' | 'editor' | 'viewer'
-  const [currentView, setCurrentView] = useState<'dashboard' | 'editor' | 'viewer'>('dashboard');
+  // 'dashboard' | 'editor' | 'viewer' | 'profile'
+  const [currentView, setCurrentView] = useState<'dashboard' | 'editor' | 'viewer' | 'profile'>('dashboard');
   const [activePageId, setActivePageId] = useState<string | null>(null); // For editor
   const [activeSlug, setActiveSlug] = useState<string | null>(null); // For viewer
 
@@ -32,6 +33,9 @@ function App() {
           setCurrentView('dashboard');
           setActiveSlug(null);
         }
+      } else if (path === '/profile') {
+        setCurrentView('profile');
+        setActiveSlug(null);
       } else {
         setCurrentView('dashboard');
         setActiveSlug(null);
@@ -224,7 +228,14 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div 
+              onClick={() => {
+                setCurrentView('profile');
+                window.history.pushState({ view: 'profile' }, '', '/profile');
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+              title="ดูโปรไฟล์และผลคะแนนของคุณ"
+            >
               <div style={{
                 width: '36px',
                 height: '36px',
@@ -233,7 +244,8 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '1px solid var(--border-glass)'
+                border: '1px solid var(--border-glass)',
+                transition: 'var(--transition-smooth)'
               }}>
                 <User size={18} style={{ color: 'var(--text-secondary)' }} />
               </div>
@@ -300,6 +312,22 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
               setCurrentView('dashboard');
               setActiveSlug(null);
               window.history.pushState({ view: 'dashboard' }, '', '/');
+            }}
+          />
+        )}
+        {currentView === 'profile' && (
+          <ProfileView
+            userId={profile.id}
+            profile={profile}
+            onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
+            onBack={() => {
+              setCurrentView('dashboard');
+              window.history.pushState({ view: 'dashboard' }, '', '/');
+            }}
+            onViewPage={(slug) => {
+              setActiveSlug(slug);
+              setCurrentView('viewer');
+              window.history.pushState({ view: 'viewer', slug }, '', `/course/${slug}`);
             }}
           />
         )}

@@ -75,5 +75,5 @@ export type QuizSubmission = {
   total_questions: number;
   created_at: string;
   profiles?: DatabaseProfile;
-  learning_pages?: { title: string };
+  learning_pages?: { title: string; slug: string };
 };
