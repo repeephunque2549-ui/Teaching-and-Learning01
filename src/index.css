@@ -626,5 +626,128 @@ a:hover {
   height: 100%;
 }
 
+/* ===== Inline Code Snippets in Text Blocks ===== */
+.text-block-content {
+  white-space: pre-line;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.text-block-content .inline-code-snippet {
+  position: relative;
+  display: block;
+  margin: 16px 0;
+  background: #0d1117;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.text-block-content .inline-code-snippet:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 0 18px rgba(99, 102, 241, 0.08);
+}
+
+.inline-code-snippet .code-snippet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: rgba(99, 102, 241, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.inline-code-snippet .code-snippet-lang {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.12);
+  padding: 2px 10px;
+  border-radius: 100px;
+}
+
+.inline-code-snippet .code-snippet-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.inline-code-snippet .code-snippet-copy-btn:hover {
+  color: var(--text-primary);
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
+}
+
+.inline-code-snippet .code-snippet-copy-btn.copied {
+  color: var(--color-success);
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.inline-code-snippet .code-snippet-body {
+  padding: 14px 18px;
+  overflow-x: auto;
+}
+
+.inline-code-snippet .code-snippet-body pre {
+  margin: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: #e6edf3;
+  white-space: pre;
+  tab-size: 4;
+}
+
+/* Inline backtick code (single backtick) */
+.text-block-content code.inline-code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.88em;
+  background: rgba(99, 102, 241, 0.12);
+  color: #c4b5fd;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+/* Editor hint badge */
+.text-editor-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.text-editor-hint code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.82em;
+  background: rgba(99, 102, 241, 0.12);
+  color: #c4b5fd;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
 
 

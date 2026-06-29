@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
-import { ArrowLeft, Loader, CheckCircle2, XCircle, Play, FileText, HelpCircle, RefreshCw, ClipboardList, Code2, Terminal, RotateCcw, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Loader, CheckCircle2, XCircle, Play, FileText, HelpCircle, RefreshCw, ClipboardList, Code2, Terminal, RotateCcw, ChevronDown, ChevronUp, Maximize2, Minimize2, Copy, Check } from 'lucide-react';
 
 interface PageViewProps {
   slug: string;
@@ -27,7 +27,9 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     showOutput: boolean;
   }>>({});
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
+  const [copiedSnippetId, setCopiedSnippetId] = useState<string | null>(null);
   const runIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isQuizStandalone = showQuizMode;
 
@@ -360,11 +362,127 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
 
 
-
   const resetCode = (blockId: string, starterCode: string) => {
     if (!window.confirm('รีเซ็ตโค้ดกลับเป็นตัวอย่างเดิมใช่หรือไม่?')) return;
     updateCodeState(blockId, { code: starterCode, output: '', showOutput: false });
   };
+  // --- Copy code snippet to clipboard ---
+  const handleCopySnippet = (snippetId: string, code: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+      setCopiedSnippetId(snippetId);
+      copiedTimeoutRef.current = setTimeout(() => setCopiedSnippetId(null), 2000);
+    }).catch(() => {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+      setCopiedSnippetId(snippetId);
+      copiedTimeoutRef.current = setTimeout(() => setCopiedSnippetId(null), 2000);
+    });
+  };
+
+  // --- Render text content with inline code snippets ---
+  // Supports ```language\ncode\n``` and single `code` syntax
+  const renderTextWithCodeSnippets = (text: string, blockId: string) => {
+    // Split on triple-backtick code fences: ```lang\ncode\n```
+    const fenceRegex = /```(\w*)\n([\s\S]*?)```/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let matchIndex = 0;
+
+    let match;
+    while ((match = fenceRegex.exec(text)) !== null) {
+      // Add text before this code fence
+      if (match.index > lastIndex) {
+        const textBefore = text.slice(lastIndex, match.index);
+        parts.push(
+          <span key={`text-${blockId}-${matchIndex}-before`}>
+            {renderInlineCode(textBefore)}
+          </span>
+        );
+      }
+
+      const language = match[1] || 'code';
+      const code = match[2].replace(/\n$/, ''); // trim trailing newline
+      const snippetId = `${blockId}-snippet-${matchIndex}`;
+      const isCopied = copiedSnippetId === snippetId;
+
+      parts.push(
+        <div key={snippetId} className="inline-code-snippet">
+          <div className="code-snippet-header">
+            <span className="code-snippet-lang">{language}</span>
+            <button
+              className={`code-snippet-copy-btn ${isCopied ? 'copied' : ''}`}
+              onClick={() => handleCopySnippet(snippetId, code)}
+              title="คัดลอกโค้ด"
+            >
+              {isCopied ? (
+                <><Check size={13} /> คัดลอกแล้ว</>
+              ) : (
+                <><Copy size={13} /> คัดลอก</>
+              )}
+            </button>
+          </div>
+          <div className="code-snippet-body">
+            <pre>{code}</pre>
+          </div>
+        </div>
+      );
+
+      lastIndex = match.index + match[0].length;
+      matchIndex++;
+    }
+
+    // Add remaining text after last code fence
+    if (lastIndex < text.length) {
+      parts.push(
+        <span key={`text-${blockId}-tail`}>
+          {renderInlineCode(text.slice(lastIndex))}
+        </span>
+      );
+    }
+
+    // If no code fences found, render with inline code support
+    if (parts.length === 0) {
+      return <>{renderInlineCode(text)}</>;
+    }
+
+    return <>{parts}</>;
+  };
+
+  // Render single backtick `code` as inline styled code
+  const renderInlineCode = (text: string): React.ReactNode[] => {
+    const inlineRegex = /`([^`]+)`/g;
+    const nodes: React.ReactNode[] = [];
+    let last = 0;
+    let m;
+    let i = 0;
+
+    while ((m = inlineRegex.exec(text)) !== null) {
+      if (m.index > last) {
+        nodes.push(text.slice(last, m.index));
+      }
+      nodes.push(
+        <code key={`inline-${i}`} className="inline-code">{m[1]}</code>
+      );
+      last = m.index + m[0].length;
+      i++;
+    }
+
+    if (last < text.length) {
+      nodes.push(text.slice(last));
+    }
+
+    return nodes;
+  };
+
 
   // Extract YouTube ID from various URL formats
   const getYouTubeEmbedUrl = (url: string) => {
@@ -516,8 +634,8 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
           return (
             <div key={block.id} style={{ marginBottom: '32px' }}>
               {block.type === 'text' && (
-                <div className="card-glass" style={{ whiteSpace: 'pre-line', fontSize: '1.05rem', lineHeight: '1.7' }}>
-                  {block.value}
+                <div className="card-glass text-block-content">
+                  {renderTextWithCodeSnippets(block.value, block.id)}
                 </div>
               )}
 
