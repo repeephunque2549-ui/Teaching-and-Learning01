@@ -700,6 +700,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                               cursorBlinking: 'smooth',
                               renderLineHighlight: 'line',
                               contextmenu: false,
+                              automaticLayout: true
                             }}
                           />
                         </div>
@@ -739,6 +740,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                               cursorBlinking: 'smooth',
                               renderLineHighlight: 'line',
                               contextmenu: false,
+                              automaticLayout: true
                             }}
                           />
                         </div>
@@ -832,7 +834,25 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                         className="pdf-viewer"
                         title="PDF document viewer"
                       ></iframe>
-                      <div style={{ textAlign: 'right', marginTop: '8px' }}>
+                      
+                      <div className="pdf-mobile-download" style={{
+                        padding: '24px 16px',
+                        textAlign: 'center',
+                        background: 'rgba(255,255,255,0.02)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-glass)',
+                        marginBottom: '8px'
+                      }}>
+                        <FileText size={44} style={{ color: '#fbbf24', margin: '0 auto 12px' }} />
+                        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
+                          เอกสารประกอบการเรียนถูกซ่อนไว้บนหน้าจอมือถือเพื่อความสะดวกในการเรียนรู้
+                        </p>
+                        <a href={block.value} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ width: '100%', padding: '10px' }}>
+                          ดาวน์โหลด / เปิดอ่านไฟล์ PDF
+                        </a>
+                      </div>
+
+                      <div className="pdf-desktop-link" style={{ textAlign: 'right', marginTop: '8px' }}>
                         <a href={block.value} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ gap: '6px' }}>
                           เปิดในแท็บใหม่
                         </a>

@@ -749,5 +749,149 @@ a:hover {
   border-radius: 4px;
 }
 
+/* =============================================
+   RESPONSIVE DESIGN SYSTEM OVERRIDES
+   ============================================= */
+@media (max-width: 1024px) {
+  .hero h1 {
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+  .card-glass {
+    padding: 20px;
+  }
+  .hero {
+    padding: 40px 0 20px;
+  }
+  .hero h1 {
+    font-size: 2rem;
+  }
+  .hero p {
+    font-size: 1rem;
+  }
+  h1 {
+    font-size: 1.8rem !important;
+  }
+  h2 {
+    font-size: 1.4rem !important;
+  }
+  h3 {
+    font-size: 1.15rem !important;
+  }
+
+  /* Code editor headers & layouts on mobile */
+  .code-editor-header {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .code-editor-toolbar {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .code-run-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .code-editor-toolbar .btn-ghost {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .fullscreen-editor-overlay {
+    padding: 12px;
+  }
+  
+  .fullscreen-editor-modal {
+    height: calc(100vh - 24px);
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 12px;
+  }
+  .card-glass {
+    padding: 16px;
+    border-radius: var(--radius-md);
+  }
+  .hero h1 {
+    font-size: 1.65rem;
+  }
+  h1 {
+    font-size: 1.5rem !important;
+  }
+  h2 {
+    font-size: 1.25rem !important;
+  }
+  h3 {
+    font-size: 1.1rem !important;
+  }
+}
+
+/* Navbar responsiveness */
+@media (max-width: 640px) {
+  .nav-user-details {
+    display: none !important;
+  }
+  .nav-logout-text {
+    display: none !important;
+  }
+  .nav-logout-btn {
+    padding: 8px !important;
+    border-radius: 50% !important;
+    min-height: auto;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Admin Dashboard filters responsiveness */
+@media (max-width: 640px) {
+  .admin-filters-wrapper {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .admin-filter-item {
+    width: 100%;
+    min-width: 100% !important;
+  }
+}
+
+/* PDF viewer responsiveness */
+.pdf-mobile-download {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .pdf-viewer {
+    display: none !important;
+  }
+  .pdf-desktop-link {
+    display: none !important;
+  }
+  .pdf-mobile-download {
+    display: block !important;
+  }
+}
+
+
+
+
+
 
 

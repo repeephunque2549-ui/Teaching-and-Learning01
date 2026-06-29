@@ -249,7 +249,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
               }}>
                 <User size={18} style={{ color: 'var(--text-secondary)' }} />
               </div>
-              <div>
+              <div className="nav-user-details">
                 <strong style={{ display: 'block', fontSize: '0.875rem', lineHeight: '1.2' }}>{profile.full_name}</strong>
                 <span className={`badge ${profile.role === 'admin' ? 'badge-admin' : 'badge-student'}`} style={{ fontSize: '0.7rem', marginTop: '2px' }}>
                   {profile.role === 'admin' ? 'อาจารย์ / ผู้ดูแล' : 'นักเรียน'}
@@ -257,9 +257,9 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
               </div>
             </div>
 
-            <button className="btn btn-secondary btn-sm" onClick={handleLogout} style={{ padding: '8px 12px' }}>
+            <button className="btn btn-secondary btn-sm nav-logout-btn" onClick={handleLogout} style={{ padding: '8px 12px' }}>
               <LogOut size={16} />
-              <span>ออกจากระบบ</span>
+              <span className="nav-logout-text">ออกจากระบบ</span>
             </button>
           </div>
         </div>

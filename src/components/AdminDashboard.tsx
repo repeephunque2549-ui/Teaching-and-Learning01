@@ -134,7 +134,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
         display: 'flex',
         borderBottom: '1px solid var(--border-glass)',
         marginBottom: '24px',
-        gap: '8px'
+        gap: '8px',
+        overflowX: 'auto',
+        whiteSpace: 'nowrap',
+        WebkitOverflowScrolling: 'touch'
       }}>
         <button
           onClick={() => setActiveTab('pages')}
@@ -147,7 +150,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
             cursor: 'pointer',
             fontSize: '1rem',
             fontWeight: 600,
-            transition: 'var(--transition-smooth)'
+            transition: 'var(--transition-smooth)',
+            flexShrink: 0
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -166,7 +170,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
             cursor: 'pointer',
             fontSize: '1rem',
             fontWeight: 600,
-            transition: 'var(--transition-smooth)'
+            transition: 'var(--transition-smooth)',
+            flexShrink: 0
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -265,7 +270,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
         /* Submissions Tab */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {submissions.length > 0 && (
-            <div className="card-glass" style={{
+            <div className="card-glass admin-filters-wrapper" style={{
               display: 'flex',
               gap: '16px',
               padding: '16px 20px',
@@ -273,7 +278,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
               alignItems: 'center'
             }}>
               {/* Search box */}
-              <div style={{ position: 'relative', flex: '1', minWidth: '240px' }}>
+              <div className="admin-filter-item" style={{ position: 'relative', flex: '1', minWidth: '240px' }}>
                 <Search size={18} style={{
                   position: 'absolute',
                   left: '12px',
@@ -301,7 +306,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
               </div>
 
               {/* Lesson Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '200px' }}>
+              <div className="admin-filter-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '200px' }}>
                 <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>บทเรียน:</span>
                 <select
                   value={selectedPageId}
@@ -326,7 +331,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
               </div>
 
               {/* Sort selection */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
+              <div className="admin-filter-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
                 <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>เรียงลำดับ:</span>
                 <select
                   value={sortBy}

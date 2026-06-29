@@ -587,7 +587,8 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
                                 lineNumbers: 'on',
                                 scrollBeyondLastLine: false,
                                 wordWrap: 'on',
-                                padding: { top: 12 }
+                                padding: { top: 12 },
+                                automaticLayout: true
                               }}
                             />
                           </div>
