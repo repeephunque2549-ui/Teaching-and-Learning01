@@ -90,7 +90,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
           <div style={{
             background: 'rgba(239, 68, 68, 0.1)',
             border: '1px solid rgba(239, 68, 68, 0.2)',
-            color: '#fca5a5',
+            color: 'var(--color-error)',
             padding: '12px 16px',
             borderRadius: 'var(--radius-md)',
             fontSize: '0.9rem',
@@ -103,12 +103,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
             <span>{error}</span>
           </div>
         )}
-
+ 
         {successMsg && (
           <div style={{
-            background: 'rgba(16, 185, 129, 0.1)',
+            background: 'var(--color-success-glow)',
             border: '1px solid rgba(16, 185, 129, 0.2)',
-            color: '#a7f3d0',
+            color: 'var(--color-success)',
             padding: '12px 16px',
             borderRadius: 'var(--radius-md)',
             fontSize: '0.9rem',

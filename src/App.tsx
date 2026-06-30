@@ -7,12 +7,20 @@ import { PageEditor } from './components/PageEditor';
 import { StudentDashboard } from './components/StudentDashboard';
 import { PageView } from './components/PageView';
 import { ProfileView } from './components/ProfileView';
-import { LogOut, User, ShieldAlert, GraduationCap, Loader } from 'lucide-react';
+import { LogOut, User, ShieldAlert, GraduationCap, Loader, Sun, Moon } from 'lucide-react';
 
 function App() {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<DatabaseProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('theme');
+    return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+  });
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   // View state routing:
   // 'dashboard' | 'editor' | 'viewer' | 'profile'
@@ -49,6 +57,15 @@ function App() {
     window.addEventListener('popstate', handleUrlRouting);
     return () => window.removeEventListener('popstate', handleUrlRouting);
   }, []);
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -152,7 +169,7 @@ function App() {
             marginBottom: '24px',
             fontSize: '0.9rem'
           }}>
-            <strong style={{ display: 'block', marginBottom: '8px', color: '#ffffff' }}>วิธีการแก้ไข:</strong>
+            <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-heading)' }}>วิธีการแก้ไข:</strong>
             <ol style={{ paddingLeft: '20px', color: 'var(--text-secondary)', lineHeight: '1.7' }}>
               <li style={{ marginBottom: '6px' }}>เปิดไฟล์ <code>.env</code> ที่อยู่ในโฟลเดอร์โปรเจกต์นี้</li>
               <li style={{ marginBottom: '6px' }}>คัดลอกลิงก์ URL และ Anon Key จากหน้าเว็บ Supabase ของคุณ</li>
@@ -205,6 +222,26 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
               <GraduationCap size={28} />
               <span>EduSphere</span>
             </div>
+            <button 
+              onClick={toggleTheme} 
+              className="btn btn-secondary" 
+              style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                padding: 0,
+                border: '1px solid var(--border-glass)',
+                background: 'var(--bg-tertiary)',
+                cursor: 'pointer',
+                transition: 'var(--transition-smooth)'
+              }}
+              title={theme === 'light' ? 'เปลี่ยนเป็นโหมดมืด' : 'เปลี่ยนเป็นโหมดสว่าง'}
+            >
+              {theme === 'light' ? <Moon size={18} style={{ color: 'var(--text-primary)' }} /> : <Sun size={18} style={{ color: 'var(--text-primary)' }} />}
+            </button>
           </div>
         </header>
         <main className="container">
@@ -228,6 +265,27 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <button 
+              onClick={toggleTheme} 
+              className="btn btn-secondary" 
+              style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                padding: 0,
+                border: '1px solid var(--border-glass)',
+                background: 'var(--bg-tertiary)',
+                cursor: 'pointer',
+                transition: 'var(--transition-smooth)'
+              }}
+              title={theme === 'light' ? 'เปลี่ยนเป็นโหมดมืด' : 'เปลี่ยนเป็นโหมดสว่าง'}
+            >
+              {theme === 'light' ? <Moon size={18} style={{ color: 'var(--text-primary)' }} /> : <Sun size={18} style={{ color: 'var(--text-primary)' }} />}
+            </button>
+
             <div 
               onClick={() => {
                 setCurrentView('profile');
@@ -295,6 +353,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
         {currentView === 'editor' && profile.role === 'admin' && (
           <PageEditor
             pageId={activePageId}
+            theme={theme}
             onClose={() => {
               setCurrentView('dashboard');
               setActivePageId(null);
@@ -308,6 +367,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
             slug={activeSlug}
             userId={profile.id}
             userRole={profile.role}
+            theme={theme}
             onBack={() => {
               setCurrentView('dashboard');
               setActiveSlug(null);

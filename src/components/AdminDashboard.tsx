@@ -145,7 +145,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
             background: 'none',
             border: 'none',
             borderBottom: activeTab === 'pages' ? '2px solid var(--color-brand)' : '2px solid transparent',
-            color: activeTab === 'pages' ? '#ffffff' : 'var(--text-secondary)',
+            color: activeTab === 'pages' ? 'var(--text-heading)' : 'var(--text-secondary)',
             padding: '12px 16px',
             cursor: 'pointer',
             fontSize: '1rem',
@@ -165,7 +165,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
             background: 'none',
             border: 'none',
             borderBottom: activeTab === 'submissions' ? '2px solid var(--color-brand)' : '2px solid transparent',
-            color: activeTab === 'submissions' ? '#ffffff' : 'var(--text-secondary)',
+            color: activeTab === 'submissions' ? 'var(--text-heading)' : 'var(--text-secondary)',
             padding: '12px 16px',
             cursor: 'pointer',
             fontSize: '1rem',
@@ -294,10 +294,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
                   style={{
                     width: '100%',
                     padding: '8px 12px 8px 38px',
-                    background: 'rgba(255,255,255,0.05)',
+                    background: 'var(--input-bg)',
                     border: '1px solid var(--border-glass)',
                     borderRadius: '8px',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontSize: '0.9rem',
                     outline: 'none',
                     transition: 'var(--transition-smooth)'
@@ -314,10 +314,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
                   style={{
                     flex: '1',
                     padding: '8px 12px',
-                    background: 'rgba(0,0,0,0.3)',
+                    background: 'var(--select-bg)',
                     border: '1px solid var(--border-glass)',
                     borderRadius: '8px',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontSize: '0.9rem',
                     outline: 'none',
                     cursor: 'pointer'
@@ -339,10 +339,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
                   style={{
                     flex: '1',
                     padding: '8px 12px',
-                    background: 'rgba(0,0,0,0.3)',
+                    background: 'var(--select-bg)',
                     border: '1px solid var(--border-glass)',
                     borderRadius: '8px',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontSize: '0.9rem',
                     outline: 'none',
                     cursor: 'pointer'
@@ -414,8 +414,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
                         </td>
                         <td style={{ padding: '16px 24px', textAlign: 'center' }}>
                           <span style={{
-                            background: sub.score === sub.total_questions ? 'var(--color-success-glow)' : 'rgba(255,255,255,0.05)',
-                            color: sub.score === sub.total_questions ? 'var(--color-success)' : '#ffffff',
+                            background: sub.score === sub.total_questions ? 'var(--color-success-glow)' : 'var(--subtle-bg)',
+                            color: sub.score === sub.total_questions ? 'var(--color-success)' : 'var(--text-heading)',
                             padding: '6px 12px',
                             borderRadius: '20px',
                             fontWeight: 700,

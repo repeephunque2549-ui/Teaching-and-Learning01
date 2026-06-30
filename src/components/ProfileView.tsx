@@ -163,10 +163,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 style={{
                   width: '100%',
                   padding: '12px',
-                  background: 'rgba(255,255,255,0.05)',
+                  background: 'var(--input-bg)',
                   border: '1px solid var(--border-glass)',
                   borderRadius: '8px',
-                  color: '#ffffff',
+                  color: 'var(--text-primary)',
                   fontSize: '1rem',
                   outline: 'none',
                   transition: 'var(--transition-smooth)'
@@ -236,7 +236,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
             <div>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>บทเรียนที่เรียนไปแล้ว</span>
-              <strong style={{ fontSize: '1.5rem', color: '#ffffff' }}>{completedLessons.length} บทเรียน</strong>
+              <strong style={{ fontSize: '1.5rem', color: 'var(--text-heading)' }}>{completedLessons.length} บทเรียน</strong>
             </div>
           </div>
 
@@ -255,7 +255,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
             <div>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>การทำแบบทดสอบทั้งหมด</span>
-              <strong style={{ fontSize: '1.5rem', color: '#ffffff' }}>{submissions.length} ครั้ง</strong>
+              <strong style={{ fontSize: '1.5rem', color: 'var(--text-heading)' }}>{submissions.length} ครั้ง</strong>
             </div>
           </div>
         </div>
@@ -295,7 +295,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   }}
                 >
                   <div>
-                    <h4 style={{ fontSize: '1.05rem', marginBottom: '6px', color: '#ffffff' }}>
+                    <h4 style={{ fontSize: '1.05rem', marginBottom: '6px', color: 'var(--text-heading)' }}>
                       {sub.learning_pages?.title || 'บทเรียนที่ถูกลบไปแล้ว'}
                     </h4>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -306,8 +306,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <span style={{
-                      background: sub.score === sub.total_questions ? 'var(--color-success-glow)' : 'rgba(255,255,255,0.05)',
-                      color: sub.score === sub.total_questions ? 'var(--color-success)' : '#ffffff',
+                      background: sub.score === sub.total_questions ? 'var(--color-success-glow)' : 'var(--subtle-bg)',
+                      color: sub.score === sub.total_questions ? 'var(--color-success)' : 'var(--text-heading)',
                       padding: '6px 12px',
                       borderRadius: '20px',
                       fontWeight: 700,

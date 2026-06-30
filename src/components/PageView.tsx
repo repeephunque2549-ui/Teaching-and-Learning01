@@ -9,9 +9,10 @@ interface PageViewProps {
   userId: string;
   userRole: 'admin' | 'student';
   onBack: () => void;
+  theme?: string;
 }
 
-export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBack }) => {
+export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBack, theme }) => {
   const [page, setPage] = useState<LearningPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [userAnswers, setUserAnswers] = useState<Record<string, number>>({}); // questionId -> optionIndex
@@ -686,7 +687,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                             height={fullWidth ? '100%' : '350px'}
                             language={block.language || 'html'}
                             value={cs.code}
-                            theme="vs-dark"
+                            theme={theme === 'light' ? 'light' : 'vs-dark'}
                             onChange={(val) => updateCodeState(block.id, { code: val || '' })}
                             options={{
                               minimap: { enabled: false },
@@ -726,7 +727,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                             height={fullWidth ? '450px' : '300px'}
                             language={block.language || 'javascript'}
                             value={cs.code}
-                            theme="vs-dark"
+                            theme={theme === 'light' ? 'light' : 'vs-dark'}
                             onChange={(val) => updateCodeState(block.id, { code: val || '' })}
                             options={{
                               minimap: { enabled: false },

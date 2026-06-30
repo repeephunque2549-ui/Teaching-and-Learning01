@@ -21,9 +21,10 @@ const CODE_LANGUAGES = [
 interface PageEditorProps {
   pageId: string | null; // null means create new page
   onClose: () => void;
+  theme?: string;
 }
 
-export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
+export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }) => {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [estimatedDuration, setEstimatedDuration] = useState('10-15 นาที');
@@ -579,7 +580,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose }) => {
                               height="260px"
                               language={block.language}
                               value={block.value}
-                              theme="vs-dark"
+                              theme={theme === 'light' ? 'light' : 'vs-dark'}
                               onChange={(val) => updateCodeBlockField(block.id, 'value', val || '')}
                               options={{
                                 minimap: { enabled: false },

@@ -3,7 +3,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* HSL Color Palette */
+  /* HSL Color Palette - Dark Theme Default */
   --bg-primary: #0b0f19;
   --bg-secondary: #111827;
   --bg-tertiary: #1f2937;
@@ -13,6 +13,7 @@
   --text-primary: #f3f4f6;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
+  --text-heading: #ffffff;
   
   --color-brand: #6366f1; /* Indigo */
   --color-brand-hover: #4f46e5;
@@ -37,6 +38,87 @@
   --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.2);
   
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Theme-specific variables */
+  --hero-text-gradient: linear-gradient(135deg, #ffffff 30%, var(--text-secondary));
+  --editor-bg: #0d1117;
+  --editor-header-bg: #161b22;
+  --editor-border: rgba(167, 139, 250, 0.25);
+  --editor-border-subtle: rgba(255, 255, 255, 0.06);
+  --editor-output-bg: #0a0e13;
+  --editor-output-text: #c9d1d9;
+  --editor-output-header-text: #34d399;
+  --editor-output-header-bg: rgba(52, 211, 153, 0.05);
+  --editor-output-header-border: rgba(52, 211, 153, 0.1);
+  --inline-code-bg: rgba(99, 102, 241, 0.12);
+  --inline-code-text: #c4b5fd;
+  --inline-code-border: rgba(99, 102, 241, 0.15);
+
+  --btn-danger-text: #fda4af;
+  --btn-secondary-hover-bg: rgba(255, 255, 255, 0.05);
+  --code-snippet-pre-color: #e6edf3;
+  --code-snippet-lang-color: #a78bfa;
+  --code-lang-badge-color: #c4b5fd;
+  --code-hint-code-color: #c4b5fd;
+  --badge-admin-color: #c084fc;
+  --badge-student-color: #34d399;
+  --preview-header-color: #8b949e;
+  --preview-header-bg: #161b22;
+  --preview-header-border: rgba(255, 255, 255, 0.05);
+  --subtle-bg: rgba(255, 255, 255, 0.04);
+  --subtle-border: rgba(255, 255, 255, 0.08);
+  --snippet-header-border: rgba(255, 255, 255, 0.05);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --select-bg: rgba(0, 0, 0, 0.3);
+}
+
+body.light-theme {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-glass: rgba(255, 255, 255, 0.75);
+  --border-glass: rgba(0, 0, 0, 0.08);
+  
+  --text-primary: #334155;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-heading: #0f172a;
+  
+  --color-brand-glow: rgba(99, 102, 241, 0.06);
+  --color-success-glow: rgba(16, 185, 129, 0.06);
+
+  --hero-text-gradient: linear-gradient(135deg, #0f172a 30%, #475569);
+
+  /* Light Theme Editor Overrides */
+  --editor-bg: #f8fafc;
+  --editor-header-bg: #e2e8f0;
+  --editor-border: rgba(167, 139, 250, 0.4);
+  --editor-border-subtle: rgba(0, 0, 0, 0.06);
+  --editor-output-bg: #f1f5f9;
+  --editor-output-text: #1e293b;
+  --editor-output-header-text: #059669;
+  --editor-output-header-bg: rgba(16, 185, 129, 0.08);
+  --editor-output-header-border: rgba(16, 185, 129, 0.15);
+  --inline-code-bg: rgba(99, 102, 241, 0.06);
+  --inline-code-text: #4f46e5;
+  --inline-code-border: rgba(99, 102, 241, 0.12);
+
+  --btn-danger-text: #dc2626;
+  --btn-secondary-hover-bg: rgba(0, 0, 0, 0.04);
+  --code-snippet-pre-color: #1e293b;
+  --code-snippet-lang-color: #6d28d9;
+  --code-lang-badge-color: #6d28d9;
+  --code-hint-code-color: #4f46e5;
+  --badge-admin-color: #7c3aed;
+  --badge-student-color: #059669;
+  --preview-header-color: #64748b;
+  --preview-header-bg: #e2e8f0;
+  --preview-header-border: rgba(0, 0, 0, 0.06);
+  --subtle-bg: rgba(0, 0, 0, 0.03);
+  --subtle-border: rgba(0, 0, 0, 0.08);
+  --snippet-header-border: rgba(0, 0, 0, 0.06);
+  --input-bg: rgba(0, 0, 0, 0.03);
+  --select-bg: rgba(0, 0, 0, 0.04);
 }
 
 * {
@@ -78,7 +160,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #ffffff;
+  color: var(--text-heading);
   line-height: 1.2;
 }
 
@@ -127,14 +209,14 @@ a:hover {
   color: var(--text-primary);
 }
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--btn-secondary-hover-bg);
   border-color: var(--text-muted);
 }
 
 .btn-danger {
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #fda4af;
+  color: var(--btn-danger-text);
 }
 .btn-danger:hover {
   background: var(--color-error);
@@ -166,7 +248,7 @@ a:hover {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-md);
-  color: #ffffff;
+  color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 0.95rem;
   transition: var(--transition-smooth);
@@ -208,7 +290,7 @@ a:hover {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(11, 15, 25, 0.8);
+  background: var(--bg-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-glass);
@@ -239,7 +321,7 @@ a:hover {
 .hero h1 {
   font-size: 3rem;
   margin-bottom: 16px;
-  background: linear-gradient(135deg, #ffffff 30%, var(--text-secondary));
+  background: var(--hero-text-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -359,11 +441,11 @@ a:hover {
 }
 .badge-admin {
   background: rgba(139, 92, 246, 0.15);
-  color: #c084fc;
+  color: var(--badge-admin-color);
 }
 .badge-student {
   background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  color: var(--badge-student-color);
 }
 
 /* Utility classes */
@@ -379,11 +461,11 @@ a:hover {
 .code-editor-block {
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid rgba(167, 139, 250, 0.25);
-  background: #0d1117;
+  border: 1px solid var(--editor-border);
+  background: var(--editor-bg);
   box-shadow:
     0 0 0 1px rgba(167, 139, 250, 0.08),
-    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 8px 32px rgba(0, 0, 0, 0.3),
     0 0 60px rgba(167, 139, 250, 0.06);
   transition: box-shadow 0.3s ease;
 }
@@ -391,7 +473,7 @@ a:hover {
 .code-editor-block:focus-within {
   box-shadow:
     0 0 0 1px rgba(167, 139, 250, 0.35),
-    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 8px 32px rgba(0, 0, 0, 0.3),
     0 0 60px rgba(167, 139, 250, 0.15);
 }
 
@@ -400,8 +482,8 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  background: #161b22;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--editor-header-bg);
+  border-bottom: 1px solid var(--editor-border-subtle);
 }
 
 .code-lang-badge {
@@ -413,7 +495,7 @@ a:hover {
   font-weight: 700;
   letter-spacing: 0.08em;
   background: rgba(167, 139, 250, 0.18);
-  color: #c4b5fd;
+  color: var(--code-lang-badge-color);
   border: 1px solid rgba(167, 139, 250, 0.3);
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
@@ -430,7 +512,7 @@ a:hover {
 }
 
 .code-reset-btn:hover {
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: var(--editor-border-subtle) !important;
   color: var(--text-secondary) !important;
   background: rgba(255, 255, 255, 0.04) !important;
 }
@@ -440,8 +522,8 @@ a:hover {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: #161b22;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--editor-header-bg);
+  border-top: 1px solid var(--editor-border-subtle);
 }
 
 .code-run-btn {
@@ -476,8 +558,8 @@ a:hover {
 }
 
 .code-output-panel {
-  background: #0a0e13;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--editor-output-bg);
+  border-top: 1px solid var(--editor-border-subtle);
 }
 
 .code-output-header {
@@ -489,9 +571,9 @@ a:hover {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #34d399;
-  background: rgba(52, 211, 153, 0.05);
-  border-bottom: 1px solid rgba(52, 211, 153, 0.1);
+  color: var(--editor-output-header-text);
+  background: var(--editor-output-header-bg);
+  border-bottom: 1px solid var(--editor-output-header-border);
 }
 
 .code-output-content {
@@ -499,7 +581,7 @@ a:hover {
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
   font-size: 0.87rem;
   line-height: 1.7;
-  color: #c9d1d9;
+  color: var(--editor-output-text);
   white-space: pre-wrap;
   word-break: break-word;
   min-height: 52px;
@@ -556,7 +638,7 @@ a:hover {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #1e1e1e;
+  background: var(--editor-bg);
   min-height: 350px;
 }
 
@@ -565,9 +647,9 @@ a:hover {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #8b949e;
-  background: #161b22;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--preview-header-color);
+  background: var(--preview-header-bg);
+  border-bottom: 1px solid var(--preview-header-border);
 }
 
 .html-preview-iframe {
@@ -655,7 +737,7 @@ a:hover {
   justify-content: space-between;
   padding: 8px 14px;
   background: rgba(99, 102, 241, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--snippet-header-border);
 }
 
 .inline-code-snippet .code-snippet-lang {
@@ -664,7 +746,7 @@ a:hover {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #a78bfa;
+  color: var(--code-snippet-lang-color);
   background: rgba(167, 139, 250, 0.12);
   padding: 2px 10px;
   border-radius: 100px;
@@ -679,7 +761,7 @@ a:hover {
   font-weight: 500;
   font-family: var(--font-sans);
   color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--subtle-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   cursor: pointer;
@@ -709,7 +791,7 @@ a:hover {
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 0.88rem;
   line-height: 1.65;
-  color: #e6edf3;
+  color: var(--code-snippet-pre-color);
   white-space: pre;
   tab-size: 4;
 }
@@ -718,11 +800,11 @@ a:hover {
 .text-block-content code.inline-code {
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 0.88em;
-  background: rgba(99, 102, 241, 0.12);
-  color: #c4b5fd;
+  background: var(--inline-code-bg);
+  color: var(--inline-code-text);
   padding: 2px 7px;
   border-radius: 5px;
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  border: 1px solid var(--inline-code-border);
 }
 
 /* Editor hint badge */
@@ -744,7 +826,7 @@ a:hover {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 0.82em;
   background: rgba(99, 102, 241, 0.12);
-  color: #c4b5fd;
+  color: var(--code-hint-code-color);
   padding: 1px 5px;
   border-radius: 4px;
 }
