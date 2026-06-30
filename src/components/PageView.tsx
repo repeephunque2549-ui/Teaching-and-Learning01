@@ -809,7 +809,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                 <div className="card-glass" style={{ padding: '20px' }}>
                   <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Play size={16} style={{ color: '#ef4444' }} />
-                    วิดีโอแนะนำบทเรียน
+                    {block.title || 'วิดีโอแนะนำบทเรียน'}
                   </h3>
                   <div className="video-wrapper">
                     <iframe
@@ -826,7 +826,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                 <div className="card-glass" style={{ padding: '20px' }}>
                   <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <FileText size={16} style={{ color: '#fbbf24' }} />
-                    เอกสารประกอบการสอน (PDF)
+                    {block.title || 'เอกสารประกอบการสอน (PDF)'}
                   </h3>
                   {block.value ? (
                     <div>

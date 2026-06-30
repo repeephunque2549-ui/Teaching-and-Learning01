@@ -175,6 +175,22 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
     ));
   };
 
+  const updateYoutubeBlockTitle = (id: string, title: string) => {
+    setBlocks(blocks.map(b =>
+      b.id === id && b.type === 'youtube'
+        ? { ...b, title } as ContentBlock
+        : b
+    ));
+  };
+
+  const updatePdfBlockTitle = (id: string, title: string) => {
+    setBlocks(blocks.map(b =>
+      b.id === id && b.type === 'pdf'
+        ? { ...b, title } as ContentBlock
+        : b
+    ));
+  };
+
   // Block modification
   const updateBlockValue = (id: string, value: string) => {
     setBlocks(blocks.map(b => b.id === id ? { ...b, value } as ContentBlock : b));
@@ -598,20 +614,42 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
                     )}
 
                     {block.type === 'youtube' && (
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">ลิงก์วิดีโอ YouTube (URL หรือ Video ID)</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="เช่น https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                          value={block.value}
-                          onChange={(e) => updateBlockValue(block.id, e.target.value)}
-                        />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">หัวข้อวิดีโอ (กำหนดเอง)</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="เช่น วิดีโอแนะนำบทเรียน (หรือปล่อยว่างไว้เพื่อใช้ค่าเริ่มต้น)"
+                            value={block.title || ''}
+                            onChange={(e) => updateYoutubeBlockTitle(block.id, e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">ลิงก์วิดีโอ YouTube (URL หรือ Video ID)</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="เช่น https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                            value={block.value}
+                            onChange={(e) => updateBlockValue(block.id, e.target.value)}
+                          />
+                        </div>
                       </div>
                     )}
 
                     {block.type === 'pdf' && (
                       <div>
+                        <div className="form-group" style={{ marginBottom: '12px' }}>
+                          <label className="form-label">หัวข้อเอกสาร PDF (กำหนดเอง)</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="เช่น เอกสารประกอบการสอน (PDF) (หรือปล่อยว่างไว้เพื่อใช้ค่าเริ่มต้น)"
+                            value={block.title || ''}
+                            onChange={(e) => updatePdfBlockTitle(block.id, e.target.value)}
+                          />
+                        </div>
                         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '12px' }}>
                           <div style={{ flex: 1, minWidth: '200px' }}>
                             <label className="form-label">ที่อยู่ลิงก์ไฟล์ PDF (URL)</label>

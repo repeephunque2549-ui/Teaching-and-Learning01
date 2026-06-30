@@ -45,8 +45,8 @@ export type DatabaseProfile = {
 
 export type ContentBlock = 
   | { id: string; type: 'text'; value: string }
-  | { id: string; type: 'youtube'; value: string }
-  | { id: string; type: 'pdf'; value: string; file_name?: string }
+  | { id: string; type: 'youtube'; value: string; title?: string }
+  | { id: string; type: 'pdf'; value: string; file_name?: string; title?: string }
   | { id: string; type: 'quiz'; questions: QuizQuestion[] }
   | { id: string; type: 'code'; language: string; value: string; description?: string };
 
