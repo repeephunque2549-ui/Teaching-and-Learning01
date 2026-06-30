@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
-import { Plus, Edit2, Trash2, Calendar, BookOpen, Award, FileText, ExternalLink, RefreshCw, Clock, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, BookOpen, Award, FileText, ExternalLink, RefreshCw, Clock, Search, Image } from 'lucide-react';
 
 interface AdminDashboardProps {
   onEditPage: (pageId: string | null) => void; // null for creating a new page
@@ -200,6 +200,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
             {pages.map(page => (
               <div key={page.id} className="card-glass" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
+                  {/* Cover Image */}
+                  {page.cover_image_url ? (
+                    <div style={{
+                      marginBottom: '14px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      maxHeight: '140px',
+                      boxShadow: '0 2px 12px rgba(0,0,0,0.2)'
+                    }}>
+                      <img
+                        src={page.cover_image_url}
+                        alt={page.title}
+                        style={{
+                          width: '100%',
+                          height: '140px',
+                          objectFit: 'cover',
+                          display: 'block'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{
+                      marginBottom: '14px',
+                      borderRadius: '10px',
+                      height: '80px',
+                      background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(236,72,153,0.08))',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Image size={28} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                    </div>
+                  )}
                   <div className="flex-between" style={{ marginBottom: '12px' }}>
                     <span style={{
                       fontSize: '0.8rem',

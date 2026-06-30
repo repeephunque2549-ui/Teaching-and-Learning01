@@ -494,7 +494,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     const match = url.match(regExp);
     
     const videoId = (match && match[2].length === 11) ? match[2] : url;
-    return `https://www.youtube.com/embed/${videoId}`;
+    return `https://www.youtube-nocookie.com/embed/${videoId}`;
   };
 
   // Option selection
@@ -585,9 +585,12 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
   if (loading) {
     return (
-      <div className="text-center" style={{ padding: '80px 0' }}>
-        <Loader className="spin-anim" size={40} style={{ color: 'var(--color-brand)' }} />
-        <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>กำลังโหลดเนื้อหาบทเรียน...</p>
+      <div className="loading-wrapper">
+        <div className="loading-spinner-glow">
+          <Loader className="spin-anim" size={40} style={{ color: 'var(--color-brand)', position: 'relative', zIndex: 1 }} />
+        </div>
+        <div className="loading-text">กำลังโหลดเนื้อหาบทเรียน...</div>
+        <div className="loading-subtext">ระบบกำลังเตรียมสื่อและคำสั่งจำลองสำหรับคุณ</div>
       </div>
     );
   }
@@ -616,7 +619,8 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
           </button>
         )}
       </div>
-
+    
+      {/* ชื่อบทเรียนด้านในบทเรียน */}
       <div className="text-center" style={{ marginBottom: '40px' }}>
         <h1 style={{ fontSize: '2.5rem', marginBottom: '8px' }}>
           {isQuizStandalone ? `แบบทดสอบ: ${page.title}` : page.title}
@@ -627,6 +631,30 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
           <span>เผยแพร่เมื่อ: {new Date(page.created_at).toLocaleDateString('th-TH')}</span>
         </div>
       </div>
+
+      {/* Cover Image */}
+      {page.cover_image_url && !isQuizStandalone && (
+        <div style={{
+          marginBottom: '32px',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          maxHeight: '400px'
+        }}>
+          <img
+            src={page.cover_image_url}
+            alt={page.title}
+            style={{
+              width: '100%',
+              height: '100%',
+              maxHeight: '400px',
+              objectFit: 'cover',
+              display: 'block'
+            }}
+          />
+        </div>
+      )}
+
 
       {/* Render Blocks */}
       <div>
@@ -815,7 +843,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                     <iframe
                       src={getYouTubeEmbedUrl(block.value)}
                       title="YouTube video player"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     ></iframe>
                   </div>
@@ -862,6 +890,40 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                   ) : (
                     <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
                       (ยังไม่ได้อัปโหลดหรือระบุลิงก์เอกสาร PDF)
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {block.type === 'image' && (
+                <div className="card-glass" style={{ padding: '20px' }}>
+                  {block.value ? (
+                    <div style={{ textAlign: 'center' }}>
+                      <img
+                        src={block.value}
+                        alt={block.caption || 'รูปภาพประกอบบทเรียน'}
+                        style={{
+                          maxWidth: '100%',
+                          borderRadius: '12px',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                          display: 'block',
+                          margin: '0 auto'
+                        }}
+                      />
+                      {block.caption && (
+                        <p style={{
+                          marginTop: '12px',
+                          fontSize: '0.9rem',
+                          color: 'var(--text-secondary)',
+                          fontStyle: 'italic'
+                        }}>
+                          {block.caption}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
+                      (ยังไม่ได้ระบุรูปภาพ)
                     </div>
                   )}
                 </div>

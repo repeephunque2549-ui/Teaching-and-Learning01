@@ -371,6 +371,9 @@ a:hover {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   margin: 16px 0;
+  transform: translate3d(0, 0, 0); /* Fix iOS Safari tap bug inside backdrop-filter container */
+  z-index: 1;
+  pointer-events: auto !important;
 }
 .video-wrapper iframe {
   position: absolute;
@@ -379,6 +382,9 @@ a:hover {
   width: 100%;
   height: 100%;
   border: 0;
+  transform: translate3d(0, 0, 0); /* Force GPU compositing layer */
+  z-index: 2;
+  pointer-events: auto !important;
 }
 
 .pdf-viewer {
@@ -971,9 +977,87 @@ a:hover {
   }
 }
 
+/* --- Premium Loading Animations & UI --- */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
 
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
 
+.spin-anim {
+  animation: spin 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
 
+/* Premium Loading Container */
+.loading-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 450px;
+  margin: 80px auto;
+  text-align: center;
+  animation: pulse-glow 3s ease-in-out infinite;
+}
 
+.loading-spinner-glow {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
+.loading-spinner-glow::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--color-brand);
+  filter: blur(12px);
+  opacity: 0.15;
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+.loading-text {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-top: 16px;
+  letter-spacing: 0.5px;
+}
+
+.loading-subtext {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}

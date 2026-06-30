@@ -48,7 +48,8 @@ export type ContentBlock =
   | { id: string; type: 'youtube'; value: string; title?: string }
   | { id: string; type: 'pdf'; value: string; file_name?: string; title?: string }
   | { id: string; type: 'quiz'; questions: QuizQuestion[] }
-  | { id: string; type: 'code'; language: string; value: string; description?: string };
+  | { id: string; type: 'code'; language: string; value: string; description?: string }
+  | { id: string; type: 'image'; value: string; caption?: string };
 
 export type QuizQuestion = {
   id: string;
@@ -63,6 +64,7 @@ export type LearningPage = {
   slug: string;
   content: ContentBlock[];
   estimated_duration?: string;
+  cover_image_url?: string;
   created_at: string;
 };
 

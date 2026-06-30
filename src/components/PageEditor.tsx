@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { supabase } from '../supabaseClient';
 import type { ContentBlock, QuizQuestion } from '../supabaseClient';
-import { ArrowLeft, Plus, Trash2, ArrowUp, ArrowDown, Type, Play, FileText, CheckSquare, Save, Upload, Loader, Code2, Copy } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ArrowUp, ArrowDown, Type, Play, FileText, CheckSquare, Save, Upload, Loader, Code2, Copy, ImageIcon } from 'lucide-react';
 
 const CODE_LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
@@ -32,6 +32,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingPdfId, setUploadingPdfId] = useState<string | null>(null);
+  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
+  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [uploadingCover, setUploadingCover] = useState(false);
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
   // Insert code template at cursor position in a text block's textarea
@@ -87,6 +90,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
         setSlug(data.slug);
         setBlocks(data.content || []);
         setEstimatedDuration(data.estimated_duration || '10-15 นาที');
+        setCoverImageUrl(data.cover_image_url || '');
       }
     } catch (err: any) {
       alert('ไม่สามารถดึงข้อมูลหน้าบทเรียนได้: ' + err.message);
@@ -165,6 +169,24 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
       description: 'ลองเขียนโค้ดและแก้ไขตัวอย่างด้านล่างนี้'
     };
     setBlocks([...blocks, newBlock]);
+  };
+
+  const addImageBlock = () => {
+    const newBlock: ContentBlock = {
+      id: crypto.randomUUID(),
+      type: 'image',
+      value: '',
+      caption: ''
+    };
+    setBlocks([...blocks, newBlock]);
+  };
+
+  const updateImageBlockCaption = (id: string, caption: string) => {
+    setBlocks(blocks.map(b =>
+      b.id === id && b.type === 'image'
+        ? { ...b, caption } as ContentBlock
+        : b
+    ));
   };
 
   const updateCodeBlockField = (id: string, field: 'language' | 'value' | 'description', val: string) => {
@@ -360,6 +382,87 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
     }
   };
 
+// Session cache to speed up subsequent uploads by avoiding double-requests when "images" bucket doesn't exist
+let usePdfsFallbackGlobal = false;
+
+  // Image Upload to Supabase Storage (for cover image or image blocks)
+  const handleImageUploadToStorage = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `images/${fileName}`;
+
+    let bucketName = usePdfsFallbackGlobal ? 'pdfs' : 'images';
+    let uploadError = null;
+
+    if (bucketName === 'images') {
+      const result = await supabase.storage
+        .from('images')
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+      uploadError = result.error;
+
+      // Fallback to pdfs bucket if images bucket is not found
+      if (uploadError && (
+        uploadError.message?.toLowerCase().includes('bucket not found') || 
+        (uploadError as any).error === 'bucket_not_found' ||
+        (uploadError as any).statusCode === '404'
+      )) {
+        usePdfsFallbackGlobal = true; // Cache the fallback flag for this session
+        bucketName = 'pdfs';
+        const fallbackResult = await supabase.storage
+          .from(bucketName)
+          .upload(filePath, file, { cacheControl: '3600', upsert: true });
+        uploadError = fallbackResult.error;
+      }
+    } else {
+      // Directly upload to fallback bucket 'pdfs'
+      const result = await supabase.storage
+        .from('pdfs')
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+      uploadError = result.error;
+    }
+
+    if (uploadError) {
+      throw new Error('ไม่สามารถอัปโหลดรูปภาพได้ กรุณาตรวจสอบว่าคุณได้สร้าง Storage Bucket ชื่อ "images" หรือ "pdfs" ใน Supabase แล้วและกำหนดสิทธิ์แบบ Public ให้เรียบร้อย (' + uploadError.message + ')');
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+    return publicUrl;
+  };
+
+  // Cover Image Upload
+  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingCover(true);
+    try {
+      const publicUrl = await handleImageUploadToStorage(file);
+      setCoverImageUrl(publicUrl);
+      alert('อัปโหลดรูปภาพหน้าปกสำเร็จ!');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  // Image Block Upload
+  const handleImageBlockUpload = async (blockId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImageId(blockId);
+    try {
+      const publicUrl = await handleImageUploadToStorage(file);
+      updateBlockValue(blockId, publicUrl);
+      alert('อัปโหลดรูปภาพสำเร็จ!');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUploadingImageId(null);
+    }
+  };
+
   // Save changes to Supabase
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -373,6 +476,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
         slug: slug.trim().toLowerCase(),
         content: blocks,
         estimated_duration: estimatedDuration || '10-15 นาที',
+        cover_image_url: coverImageUrl || null,
         updated_at: new Date().toISOString()
       };
 
@@ -404,9 +508,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
 
   if (loading) {
     return (
-      <div className="text-center" style={{ padding: '80px 0' }}>
-        <Loader className="spin-anim" size={40} style={{ color: 'var(--color-brand)' }} />
-        <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>กำลังโหลดข้อมูลหน้าเรียน...</p>
+      <div className="loading-wrapper">
+        <div className="loading-spinner-glow">
+          <Loader className="spin-anim" size={40} style={{ color: 'var(--color-brand)', position: 'relative', zIndex: 1 }} />
+        </div>
+        <div className="loading-text">กำลังโหลดข้อมูลหน้าเรียน...</div>
+        <div className="loading-subtext">ระบบกำลังดึงข้อมูลโครงสร้างบล็อกเรียนล่าสุด</div>
       </div>
     );
   }
@@ -464,6 +571,69 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
             </div>
           </div>
 
+          {/* Cover Image Section */}
+          <div style={{ borderTop: '1px solid var(--border-glass)', padding: '24px 0 12px' }}>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ImageIcon size={20} style={{ color: '#f472b6' }} />
+              รูปภาพหน้าปกบทเรียน (Cover Image)
+            </h3>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: '24px' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <label className="form-label">URL รูปภาพหน้าปก</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="https://example.com/cover-image.jpg"
+                  value={coverImageUrl}
+                  onChange={(e) => setCoverImageUrl(e.target.value)}
+                />
+              </div>
+              <div style={{ width: '220px' }}>
+                <label className="form-label">หรือ อัปโหลดจากเครื่อง</label>
+                <label className="btn btn-secondary" style={{ width: '100%', cursor: 'pointer', gap: '8px' }}>
+                  {uploadingCover ? (
+                    <Loader size={16} className="spin-anim" />
+                  ) : (
+                    <Upload size={16} />
+                  )}
+                  {uploadingCover ? 'กำลังอัปโหลด...' : 'เลือกรูปภาพ'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleCoverImageUpload}
+                    disabled={uploadingCover}
+                  />
+                </label>
+              </div>
+            </div>
+            {coverImageUrl && (
+              <div style={{
+                marginBottom: '24px',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                border: '1px solid var(--border-glass)',
+                maxHeight: '250px',
+                position: 'relative'
+              }}>
+                <img
+                  src={coverImageUrl}
+                  alt="Cover preview"
+                  style={{ width: '100%', maxHeight: '250px', objectFit: 'cover', display: 'block' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  style={{ position: 'absolute', top: '8px', right: '8px', padding: '4px 8px' }}
+                  onClick={() => setCoverImageUrl('')}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+
           <div style={{ borderTop: '1px solid var(--border-glass)', padding: '24px 0 12px' }}>
             <h3 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>ส่วนเนื้อหาบทเรียน (Content Blocks)</h3>
             
@@ -490,6 +660,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
                         {block.type === 'pdf' && <FileText size={18} style={{ color: '#fbbf24' }} />}
                         {block.type === 'quiz' && <CheckSquare size={18} style={{ color: '#34d399' }} />}
                         {block.type === 'code' && <Code2 size={18} style={{ color: '#a78bfa' }} />}
+                        {block.type === 'image' && <ImageIcon size={18} style={{ color: '#f472b6' }} />}
                         <strong style={{ textTransform: 'uppercase', fontSize: '0.85rem' }}>
                           บล็อกที่ {index + 1}: {block.type}
                         </strong>
@@ -688,6 +859,68 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
                       </div>
                     )}
 
+                    {block.type === 'image' && (
+                      <div>
+                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                          <div style={{ flex: 1, minWidth: '200px' }}>
+                            <label className="form-label">URL รูปภาพ</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="https://example.com/image.jpg"
+                              value={block.value}
+                              onChange={(e) => updateBlockValue(block.id, e.target.value)}
+                            />
+                          </div>
+                          <div style={{ width: '220px' }}>
+                            <label className="form-label">หรือ อัปโหลดจากเครื่อง</label>
+                            <label className="btn btn-secondary" style={{ width: '100%', cursor: 'pointer', gap: '8px' }}>
+                              {uploadingImageId === block.id ? (
+                                <Loader size={16} className="spin-anim" />
+                              ) : (
+                                <Upload size={16} />
+                              )}
+                              {uploadingImageId === block.id ? 'กำลังอัปโหลด...' : 'เลือกรูปภาพ'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={(e) => handleImageBlockUpload(block.id, e)}
+                                disabled={uploadingImageId !== null}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: '12px' }}>
+                          <label className="form-label">คำบรรยายรูปภาพ (Caption)</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="เช่น แผนภาพแสดงโครงสร้างข้อมูล (หรือปล่อยว่างไว้)"
+                            value={block.caption || ''}
+                            onChange={(e) => updateImageBlockCaption(block.id, e.target.value)}
+                          />
+                        </div>
+                        {block.value && (
+                          <div style={{
+                            borderRadius: '10px',
+                            overflow: 'hidden',
+                            border: '1px solid var(--border-glass)',
+                            maxHeight: '300px',
+                            textAlign: 'center',
+                            background: 'rgba(0,0,0,0.1)'
+                          }}>
+                            <img
+                              src={block.value}
+                              alt={block.caption || 'Preview'}
+                              style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {block.type === 'quiz' && (
                       <div className="quiz-card" style={{ background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-glass)', margin: 0 }}>
                         <h4 style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -809,6 +1042,10 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
               <button type="button" className="btn btn-secondary" onClick={addCodeBlock} style={{ borderColor: 'rgba(167,139,250,0.4)', color: '#a78bfa' }}>
                 <Code2 size={16} />
                 + เพิ่ม Code Editor
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={addImageBlock} style={{ borderColor: 'rgba(244,114,182,0.4)', color: '#f472b6' }}>
+                <ImageIcon size={16} />
+                + เพิ่มรูปภาพ
               </button>
             </div>
           </div>

@@ -54,9 +54,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
 
   if (loading) {
     return (
-      <div className="text-center" style={{ padding: '80px 0' }}>
-        <Loader className="spin-anim" size={40} style={{ color: 'var(--color-brand)' }} />
-        <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>กำลังโหลดบทเรียนสำหรับคุณ...</p>
+      <div className="loading-wrapper">
+        <div className="loading-spinner-glow">
+          <Loader className="spin-anim" size={40} style={{ color: 'var(--color-brand)', position: 'relative', zIndex: 1 }} />
+        </div>
+        <div className="loading-text">กำลังโหลดบทเรียนสำหรับคุณ...</div>
+        <div className="loading-subtext">ระบบกำลังตรวจสอบความคืบหน้าของห้องเรียน</div>
       </div>
     );
   }
@@ -109,6 +112,39 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
                 }}
               >
                 <div>
+                  {/* Cover Image */}
+                  {page.cover_image_url ? (
+                    <div style={{
+                      marginBottom: '14px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      maxHeight: '160px',
+                      boxShadow: '0 2px 12px rgba(0,0,0,0.2)'
+                    }}>
+                      <img
+                        src={page.cover_image_url}
+                        alt={page.title}
+                        style={{
+                          width: '100%',
+                          height: '160px',
+                          objectFit: 'cover',
+                          display: 'block'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{
+                      marginBottom: '14px',
+                      borderRadius: '10px',
+                      height: '100px',
+                      background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.10))',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <BookOpen size={32} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                    </div>
+                  )}
                   <div className="flex-between" style={{ marginBottom: '12px' }}>
                     <span style={{
                       fontSize: '0.75rem',

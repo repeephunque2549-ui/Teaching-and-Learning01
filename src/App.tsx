@@ -206,8 +206,13 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
         minHeight: '100vh',
         backgroundColor: 'var(--bg-primary)'
       }}>
-        <Loader className="spin-anim" size={48} style={{ color: 'var(--color-brand)' }} />
-        <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>กำลังเชื่อมต่อกับระบบ...</p>
+        <div className="loading-wrapper" style={{ margin: '0 auto' }}>
+          <div className="loading-spinner-glow">
+            <Loader className="spin-anim" size={44} style={{ color: 'var(--color-brand)', position: 'relative', zIndex: 1 }} />
+          </div>
+          <div className="loading-text">กำลังเชื่อมต่อกับระบบ...</div>
+          <div className="loading-subtext">กรุณารอสักครู่เพื่อเข้าสู่ห้องเรียนจำลอง</div>
+        </div>
       </div>
     );
   }
