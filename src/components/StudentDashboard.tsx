@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
-import { BookOpen, CheckCircle, PlayCircle, Loader, RefreshCw, Award } from 'lucide-react';
+import { BookOpen, CheckCircle, PlayCircle, Loader, RefreshCw, Award, Search } from 'lucide-react';
+import { LessonFilters } from './LessonFilters';
 
 interface StudentDashboardProps {
   onViewPage: (slug: string) => void;
@@ -12,6 +13,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
   const [pages, setPages] = useState<LearningPage[]>([]);
   const [submissions, setSubmissions] = useState<Record<string, QuizSubmission>>({});
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'incomplete'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alphabetical'>('newest');
 
   const fetchStudentData = async () => {
     setLoading(true);
@@ -47,6 +51,37 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
       setLoading(false);
     }
   };
+
+  // Filter and sort pages
+  const filteredAndSortedPages = useMemo(() => pages
+    .filter((page) => {
+      const matchesSearch = page.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (page.estimated_duration && page.estimated_duration.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const isCompleted = !!submissions[page.id];
+      const matchesStatus = 
+        statusFilter === 'all' ||
+        (statusFilter === 'completed' && isCompleted) ||
+        (statusFilter === 'incomplete' && !isCompleted);
+      
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else if (sortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (sortBy === 'alphabetical') {
+        return a.title.localeCompare(b.title, 'th');
+      }
+      return 0;
+    }), [pages, submissions, searchQuery, statusFilter, sortBy]);
+
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setSortBy('newest');
+  }, []);
 
   useEffect(() => {
     fetchStudentData();
@@ -84,6 +119,19 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
         </button>
       </div>
 
+      {/* Search & Filters */}
+      {pages.length > 0 && (
+        <LessonFilters
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          showStatusFilter={true}
+        />
+      )}
+
       {pages.length === 0 ? (
         <div className="card-glass text-center" style={{ padding: '60px 20px' }}>
           <BookOpen size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
@@ -92,23 +140,39 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
             กรุณารอผู้ดูแลระบบหรืออาจารย์สร้างเนื้อหาบทเรียนใหม่เร็ว ๆ นี้
           </p>
         </div>
+      ) : filteredAndSortedPages.length === 0 ? (
+        <div className="card-glass text-center" style={{ padding: '60px 20px' }}>
+          <Search size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+          <h3>ไม่พบข้อมูลบทเรียนที่ตรงกับเงื่อนไข</h3>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px', marginBottom: '20px' }}>
+            กรุณาลองเปลี่ยนคำค้นหา หรือรีเซ็ตตัวกรองของคุณ
+          </p>
+          <button className="btn btn-secondary" onClick={clearFilters} style={{ margin: '0 auto' }}>
+            ล้างตัวกรองทั้งหมด
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-3">
-          {pages.map(page => {
+          {filteredAndSortedPages.map(page => {
             const userSub = submissions[page.id];
             const isCompleted = !!userSub;
 
             return (
               <div
                 key={page.id}
-                className="card-glass"
+                className="card-glass lesson-card"
+                onClick={() => onViewPage(page.slug)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onViewPage(page.slug); }}
+                aria-label={`เปิดบทเรียน: ${page.title}`}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
                   border: isCompleted ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-glass)',
                   background: isCompleted ? 'linear-gradient(to bottom, rgba(16, 185, 129, 0.03), var(--bg-glass))' : 'var(--bg-glass)',
-                  transition: 'var(--transition-smooth)'
+                  cursor: 'pointer',
                 }}
               >
                 <div>
@@ -118,17 +182,20 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
                       marginBottom: '14px',
                       borderRadius: '10px',
                       overflow: 'hidden',
-                      maxHeight: '160px',
+                      height: '160px',
                       boxShadow: '0 2px 12px rgba(0,0,0,0.2)'
                     }}>
                       <img
                         src={page.cover_image_url}
                         alt={page.title}
+                        loading="lazy"
+                        decoding="async"
                         style={{
                           width: '100%',
-                          height: '160px',
+                          height: '100%',
                           objectFit: 'cover',
-                          display: 'block'
+                          display: 'block',
+                          transition: 'transform 0.3s ease',
                         }}
                       />
                     </div>
@@ -136,7 +203,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
                     <div style={{
                       marginBottom: '14px',
                       borderRadius: '10px',
-                      height: '100px',
+                      height: '160px',
                       background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.10))',
                       display: 'flex',
                       alignItems: 'center',
@@ -193,7 +260,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
 
                   <button
                     className={`btn btn-sm ${isCompleted ? 'btn-secondary' : 'btn-primary'}`}
-                    onClick={() => onViewPage(page.slug)}
+                    onClick={(e) => { e.stopPropagation(); onViewPage(page.slug); }}
                   >
                     {isCompleted ? 'ทบทวนบทเรียน' : 'เริ่มเรียนเลย'}
                   </button>

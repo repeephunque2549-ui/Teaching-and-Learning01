@@ -1,8 +1,10 @@
 /* Core Design System for Teaching & Learning Platform */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap&display=swap');
 
 :root {
+  scroll-behavior: smooth;
+  color-scheme: dark light;
   /* HSL Color Palette - Dark Theme Default */
   --bg-primary: #0b0f19;
   --bg-secondary: #111827;
@@ -186,8 +188,14 @@ a:hover {
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: var(--transition-smooth);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease;
   user-select: none;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .btn-primary {
@@ -336,9 +344,10 @@ a:hover {
 .grid {
   display: grid;
   gap: 24px;
+  contain: layout;
 }
-.grid-cols-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-.grid-cols-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid-cols-2 { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 
 /* Dynamic Editor and Blocks styles */
 .block-item {
@@ -348,7 +357,8 @@ a:hover {
   border-radius: var(--radius-md);
   padding: 24px;
   margin-bottom: 20px;
-  transition: var(--transition-smooth);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  contain: layout style;
 }
 .block-item:hover {
   border-color: rgba(99, 102, 241, 0.3);
@@ -977,6 +987,64 @@ a:hover {
   }
 }
 
+/* =============================================
+   VIEW TRANSITION ANIMATION
+   ============================================= */
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.view-fade-in {
+  animation: viewFadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: opacity, transform;
+}
+
+/* =============================================
+   CARD HOVER ENHANCEMENT
+   ============================================= */
+.card-glass {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.25s ease;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Clickable lesson card — full-card interactive */
+.lesson-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.35) !important;
+}
+
+.lesson-card:hover img {
+  transform: scale(1.04);
+}
+
+.lesson-card:active {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.lesson-card:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 3px;
+}
+
+/* =============================================
+   OPTION LABEL SMOOTH TRANSITION
+   ============================================= */
+.option-label {
+  will-change: background-color, border-color;
+}
+
 /* --- Premium Loading Animations & UI --- */
 @keyframes spin {
   0% { transform: rotate(0deg); }
@@ -1016,6 +1084,7 @@ a:hover {
   padding: 60px 24px;
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -1023,6 +1092,7 @@ a:hover {
   margin: 80px auto;
   text-align: center;
   animation: pulse-glow 3s ease-in-out infinite;
+  will-change: opacity, transform;
 }
 
 .loading-spinner-glow {

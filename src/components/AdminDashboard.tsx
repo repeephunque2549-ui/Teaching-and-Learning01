@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
 import { Plus, Edit2, Trash2, Calendar, BookOpen, Award, FileText, ExternalLink, RefreshCw, Clock, Search, Image } from 'lucide-react';
+import { LessonFilters } from './LessonFilters';
 
 interface AdminDashboardProps {
   onEditPage: (pageId: string | null) => void; // null for creating a new page
@@ -16,6 +17,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
 
   // Search & Filter states
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchPagesQuery, setSearchPagesQuery] = useState('');
+  const [sortPagesBy, setSortPagesBy] = useState<'newest' | 'oldest' | 'alphabetical'>('newest');
+  const [statusPagesFilter, setStatusPagesFilter] = useState<'all' | 'completed' | 'incomplete'>('all');
   const [selectedPageId, setSelectedPageId] = useState('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
 
@@ -65,7 +69,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
     fetchData();
   }, []);
 
-  const handleDeletePage = async (id: string) => {
+  const handleDeletePage = useCallback(async (id: string) => {
     if (!window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบบทเรียนนี้? การลบจะไม่สามารถย้อนกลับได้')) return;
     
     try {
@@ -75,15 +79,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
         .eq('id', id);
       
       if (error) throw error;
-      setPages(pages.filter(p => p.id !== id));
+      setPages(prev => prev.filter(p => p.id !== id));
       // Refresh submissions because of cascade delete
       fetchData();
     } catch (err: any) {
       alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
     }
-  };
+  }, []);
 
-  const filteredSubmissions = submissions.filter(sub => {
+  const filteredSubmissions = useMemo(() => submissions.filter(sub => {
     const name = (sub.profiles?.full_name || '').toLowerCase();
     const pageTitle = (sub.learning_pages?.title || '').toLowerCase();
     const query = searchQuery.toLowerCase();
@@ -101,7 +105,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
       return a.score - b.score;
     }
     return 0;
-  });
+  }), [submissions, searchQuery, selectedPageId, sortBy]);
+
+  const filteredPages = useMemo(() => pages
+    .filter(page => {
+      const title = (page.title || '').toLowerCase();
+      const slug = (page.slug || '').toLowerCase();
+      const query = searchPagesQuery.toLowerCase();
+      const matchesSearch = title.includes(query) || slug.includes(query);
+
+      const hasSubmissions = submissions.some(sub => sub.page_id === page.id);
+      const matchesStatus = 
+        statusPagesFilter === 'all' ||
+        (statusPagesFilter === 'completed' && hasSubmissions) ||
+        (statusPagesFilter === 'incomplete' && !hasSubmissions);
+
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (sortPagesBy === 'newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else if (sortPagesBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (sortPagesBy === 'alphabetical') {
+        return a.title.localeCompare(b.title, 'th');
+      }
+      return 0;
+    }), [pages, submissions, searchPagesQuery, statusPagesFilter, sortPagesBy]);
 
   return (
     <div>
@@ -196,107 +226,139 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2">
-            {pages.map(page => (
-              <div key={page.id} className="card-glass" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  {/* Cover Image */}
-                  {page.cover_image_url ? (
-                    <div style={{
-                      marginBottom: '14px',
-                      borderRadius: '10px',
-                      overflow: 'hidden',
-                      maxHeight: '140px',
-                      boxShadow: '0 2px 12px rgba(0,0,0,0.2)'
-                    }}>
-                      <img
-                        src={page.cover_image_url}
-                        alt={page.title}
-                        style={{
-                          width: '100%',
-                          height: '140px',
-                          objectFit: 'cover',
-                          display: 'block'
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div style={{
-                      marginBottom: '14px',
-                      borderRadius: '10px',
-                      height: '80px',
-                      background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(236,72,153,0.08))',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <Image size={28} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-                    </div>
-                  )}
-                  <div className="flex-between" style={{ marginBottom: '12px' }}>
-                    <span style={{
-                      fontSize: '0.8rem',
-                      background: 'rgba(255,255,255,0.05)',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      color: 'var(--text-secondary)'
-                    }}>
-                      /{page.slug}
-                    </span>
-                    <span className="badge badge-admin" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                      <FileText size={12} />
-                      {page.content ? page.content.length : 0} บล็อก
-                    </span>
-                  </div>
-                  <h3 style={{ fontSize: '1.25rem', marginBottom: '8px' }}>{page.title}</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      <Calendar size={14} />
-                      <span>สร้างเมื่อ: {new Date(page.created_at).toLocaleDateString('th-TH')}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      <Clock size={14} />
-                      <span>เวลาเรียน: {page.estimated_duration || '10-15 นาที'}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginTop: '24px',
-                  borderTop: '1px solid var(--border-glass)',
-                  paddingTop: '16px'
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <LessonFilters
+              searchQuery={searchPagesQuery}
+              setSearchQuery={setSearchPagesQuery}
+              sortBy={sortPagesBy}
+              setSortBy={setSortPagesBy}
+              statusFilter={statusPagesFilter}
+              setStatusFilter={setStatusPagesFilter}
+              showStatusFilter={true}
+              isAdmin={true}
+            />
+
+            {filteredPages.length === 0 ? (
+              <div className="card-glass text-center" style={{ padding: '60px 20px' }}>
+                <Search size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+                <h3>ไม่พบหน้าเรียนที่ตรงตามเงื่อนไข</h3>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '4px', marginBottom: '16px' }}>
+                  ลองเปลี่ยนคำค้นหาเพื่อแสดงบทเรียนอื่น
+                </p>
+                <button className="btn btn-secondary btn-sm" onClick={() => {
+                  setSearchPagesQuery('');
+                  setSortPagesBy('newest');
+                  setStatusPagesFilter('all');
                 }}>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    style={{ gap: '4px' }}
-                    onClick={() => onViewPage(page.slug)}
-                  >
-                    <ExternalLink size={14} />
-                    ดูหน้าเว็บ
-                  </button>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ gap: '4px' }}
-                      onClick={() => onEditPage(page.id)}
-                    >
-                      <Edit2 size={14} />
-                      แก้ไข
-                    </button>
-                    <button
-                      className="btn btn-danger btn-sm"
-                      style={{ gap: '4px' }}
-                      onClick={() => handleDeletePage(page.id)}
-                    >
-                      <Trash2 size={14} />
-                      ลบ
-                    </button>
-                  </div>
-                </div>
+                  ล้างตัวกรอง
+                </button>
               </div>
-            ))}
+            ) : (
+              <div className="grid grid-cols-3">
+                {filteredPages.map(page => (
+                  <div key={page.id} className="card-glass" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      {/* Cover Image */}
+                      {page.cover_image_url ? (
+                        <div style={{
+                          marginBottom: '14px',
+                          borderRadius: '10px',
+                          overflow: 'hidden',
+                          height: '160px',
+                          boxShadow: '0 2px 12px rgba(0,0,0,0.2)'
+                        }}>
+                          <img
+                            src={page.cover_image_url}
+                            alt={page.title}
+                            loading="lazy"
+                            decoding="async"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block'
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{
+                          marginBottom: '14px',
+                          borderRadius: '10px',
+                          height: '160px',
+                          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(236,72,153,0.08))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Image size={28} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                        </div>
+                      )}
+                      <div className="flex-between" style={{ marginBottom: '12px' }}>
+                        <span style={{
+                          fontSize: '0.8rem',
+                          background: 'rgba(255,255,255,0.05)',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          /{page.slug}
+                        </span>
+                        <span className="badge badge-admin" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          <FileText size={12} />
+                          {page.content ? page.content.length : 0} บล็อก
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1.25rem', marginBottom: '8px' }}>{page.title}</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          <Calendar size={14} />
+                          <span>สร้างเมื่อ: {new Date(page.created_at).toLocaleDateString('th-TH')}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          <Clock size={14} />
+                          <span>เวลาเรียน: {page.estimated_duration || '10-15 นาที'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginTop: '24px',
+                      borderTop: '1px solid var(--border-glass)',
+                      paddingTop: '16px'
+                    }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ gap: '4px' }}
+                        onClick={() => onViewPage(page.slug)}
+                      >
+                        <ExternalLink size={14} />
+                        ดูหน้าเว็บ
+                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ gap: '4px' }}
+                          onClick={() => onEditPage(page.id)}
+                        >
+                          <Edit2 size={14} />
+                          แก้ไข
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          style={{ gap: '4px' }}
+                          onClick={() => handleDeletePage(page.id)}
+                        >
+                          <Trash2 size={14} />
+                          ลบ
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )
       ) : (
@@ -470,16 +532,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
         </div>
       )}
 
-      {/* Embedded CSS style for spinning refresh icon */}
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .spin-anim {
-          animation: spin 1s linear infinite;
-        }
-      `}</style>
     </div>
   );
 };

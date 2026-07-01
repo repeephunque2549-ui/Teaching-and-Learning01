@@ -1,13 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import type { DatabaseProfile } from './supabaseClient';
-import { AuthView } from './components/AuthView';
-import { AdminDashboard } from './components/AdminDashboard';
-import { PageEditor } from './components/PageEditor';
-import { StudentDashboard } from './components/StudentDashboard';
-import { PageView } from './components/PageView';
-import { ProfileView } from './components/ProfileView';
 import { LogOut, User, ShieldAlert, GraduationCap, Loader, Sun, Moon } from 'lucide-react';
+
+// Lazy-load heavy components to reduce initial bundle size
+const AuthView = lazy(() => import('./components/AuthView').then(m => ({ default: m.AuthView })));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const PageEditor = lazy(() => import('./components/PageEditor').then(m => ({ default: m.PageEditor })));
+const StudentDashboard = lazy(() => import('./components/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
+const PageView = lazy(() => import('./components/PageView').then(m => ({ default: m.PageView })));
+const ProfileView = lazy(() => import('./components/ProfileView').then(m => ({ default: m.ProfileView })));
+
+// Reusable inline loading fallback for Suspense boundaries
+function SuspenseFallback() {
+  return (
+    <div className="loading-wrapper" style={{ margin: '80px auto' }}>
+      <div className="loading-spinner-glow">
+        <Loader className="spin-anim" size={40} style={{ color: 'var(--color-brand)', position: 'relative', zIndex: 1 }} />
+      </div>
+      <div className="loading-text">กำลังโหลดหน้า...</div>
+    </div>
+  );
+}
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -250,7 +264,9 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
           </div>
         </header>
         <main className="container">
-          <AuthView onAuthSuccess={handleAuthSuccess} />
+          <Suspense fallback={<SuspenseFallback />}>
+            <AuthView onAuthSuccess={handleAuthSuccess} />
+          </Suspense>
         </main>
       </>
     );
@@ -330,76 +346,80 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
 
       {/* Main Content Areas */}
       <main className="container" style={{ padding: '40px 24px' }}>
-        {currentView === 'dashboard' && (
-          profile.role === 'admin' ? (
-            <AdminDashboard
-              onEditPage={(id) => {
-                setActivePageId(id);
-                setCurrentView('editor');
-              }}
-              onViewPage={(slug) => {
-                setActiveSlug(slug);
-                setCurrentView('viewer');
-                window.history.pushState({ view: 'viewer', slug }, '', `/course/${slug}`);
-              }}
-            />
-          ) : (
-            <StudentDashboard
-              userId={profile.id}
-              onViewPage={(slug) => {
-                setActiveSlug(slug);
-                setCurrentView('viewer');
-                window.history.pushState({ view: 'viewer', slug }, '', `/course/${slug}`);
-              }}
-            />
-          )
-        )}
+        <Suspense fallback={<SuspenseFallback />}>
+          {/* Use key to trigger fade-in animation on view change */}
+          <div key={currentView + (activeSlug || activePageId || '')} className="view-fade-in">
+            {currentView === 'dashboard' && (
+              profile.role === 'admin' ? (
+                <AdminDashboard
+                  onEditPage={(id) => {
+                    setActivePageId(id);
+                    setCurrentView('editor');
+                  }}
+                  onViewPage={(slug) => {
+                    setActiveSlug(slug);
+                    setCurrentView('viewer');
+                    window.history.pushState({ view: 'viewer', slug }, '', `/course/${slug}`);
+                  }}
+                />
+              ) : (
+                <StudentDashboard
+                  userId={profile.id}
+                  onViewPage={(slug) => {
+                    setActiveSlug(slug);
+                    setCurrentView('viewer');
+                    window.history.pushState({ view: 'viewer', slug }, '', `/course/${slug}`);
+                  }}
+                />
+              )
+            )}
 
-        {currentView === 'editor' && profile.role === 'admin' && (
-          <PageEditor
-            pageId={activePageId}
-            theme={theme}
-            onClose={() => {
-              setCurrentView('dashboard');
-              setActivePageId(null);
-              window.history.pushState({ view: 'dashboard' }, '', '/');
-            }}
-          />
-        )}
+            {currentView === 'editor' && profile.role === 'admin' && (
+              <PageEditor
+                pageId={activePageId}
+                theme={theme}
+                onClose={() => {
+                  setCurrentView('dashboard');
+                  setActivePageId(null);
+                  window.history.pushState({ view: 'dashboard' }, '', '/');
+                }}
+              />
+            )}
 
-        {currentView === 'viewer' && activeSlug && (
-          <PageView
-            slug={activeSlug}
-            userId={profile.id}
-            userRole={profile.role}
-            theme={theme}
-            onBack={() => {
-              setCurrentView('dashboard');
-              setActiveSlug(null);
-              window.history.pushState({ view: 'dashboard' }, '', '/');
-            }}
-          />
-        )}
-        {currentView === 'profile' && (
-          <ProfileView
-            userId={profile.id}
-            profile={profile}
-            onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
-            onBack={() => {
-              setCurrentView('dashboard');
-              window.history.pushState({ view: 'dashboard' }, '', '/');
-            }}
-            onViewPage={(slug) => {
-              setActiveSlug(slug);
-              setCurrentView('viewer');
-              window.history.pushState({ view: 'viewer', slug }, '', `/course/${slug}`);
-            }}
-          />
-        )}
+            {currentView === 'viewer' && activeSlug && (
+              <PageView
+                slug={activeSlug}
+                userId={profile.id}
+                userRole={profile.role}
+                theme={theme}
+                onBack={() => {
+                  setCurrentView('dashboard');
+                  setActiveSlug(null);
+                  window.history.pushState({ view: 'dashboard' }, '', '/');
+                }}
+              />
+            )}
+            {currentView === 'profile' && (
+              <ProfileView
+                userId={profile.id}
+                profile={profile}
+                onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
+                onBack={() => {
+                  setCurrentView('dashboard');
+                  window.history.pushState({ view: 'dashboard' }, '', '/');
+                }}
+                onViewPage={(slug) => {
+                  setActiveSlug(slug);
+                  setCurrentView('viewer');
+                  window.history.pushState({ view: 'viewer', slug }, '', `/course/${slug}`);
+                }}
+              />
+            )}
+          </div>
+        </Suspense>
       </main>
     </>
   );
 }
 
 export default App;
-

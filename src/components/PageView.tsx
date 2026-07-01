@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import Editor from '@monaco-editor/react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
@@ -109,9 +109,9 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
   };
 
   // --- Code Editor helpers ---
-  const updateCodeState = (blockId: string, patch: Partial<{ code: string; output: string; running: boolean; showOutput: boolean }>) => {
+  const updateCodeState = useCallback((blockId: string, patch: Partial<{ code: string; output: string; running: boolean; showOutput: boolean }>) => {
     setCodeStates(prev => ({ ...prev, [blockId]: { ...prev[blockId], ...patch } }));
-  };
+  }, []);
 
   const runCode = (blockId: string, language: string, _starterCode: string) => {
     const state = codeStates[blockId];
@@ -363,12 +363,12 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
 
 
-  const resetCode = (blockId: string, starterCode: string) => {
+  const resetCode = useCallback((blockId: string, starterCode: string) => {
     if (!window.confirm('รีเซ็ตโค้ดกลับเป็นตัวอย่างเดิมใช่หรือไม่?')) return;
     updateCodeState(blockId, { code: starterCode, output: '', showOutput: false });
-  };
+  }, [updateCodeState]);
   // --- Copy code snippet to clipboard ---
-  const handleCopySnippet = (snippetId: string, code: string) => {
+  const handleCopySnippet = useCallback((snippetId: string, code: string) => {
     navigator.clipboard.writeText(code).then(() => {
       if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
       setCopiedSnippetId(snippetId);
@@ -387,7 +387,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       setCopiedSnippetId(snippetId);
       copiedTimeoutRef.current = setTimeout(() => setCopiedSnippetId(null), 2000);
     });
-  };
+  }, []);
 
   // --- Render text content with inline code snippets ---
   // Supports ```language\ncode\n``` and single `code` syntax
@@ -498,13 +498,13 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
   };
 
   // Option selection
-  const handleSelectOption = (questionId: string, optionIndex: number) => {
+  const handleSelectOption = useCallback((questionId: string, optionIndex: number) => {
     if (showResults) return; // Prevent changing answers after submission
-    setUserAnswers({
-      ...userAnswers,
+    setUserAnswers(prev => ({
+      ...prev,
       [questionId]: optionIndex
-    });
-  };
+    }));
+  }, [showResults]);
 
   // Submit quiz answers
   const handleSubmitQuiz = async (_quizBlockId: string, questions: any[]) => {
@@ -644,6 +644,8 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
           <img
             src={page.cover_image_url}
             alt={page.title}
+            loading="lazy"
+            decoding="async"
             style={{
               width: '100%',
               height: '100%',
