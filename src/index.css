@@ -500,6 +500,7 @@ a:hover {
   padding: 10px 16px;
   background: var(--editor-header-bg);
   border-bottom: 1px solid var(--editor-border-subtle);
+  flex-shrink: 0;
 }
 
 .code-lang-badge {
@@ -688,40 +689,39 @@ a:hover {
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(10px);
   z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
 }
 
-.fullscreen-editor-modal {
-  width: 100%;
-  max-width: 1400px;
-  height: calc(100vh - 48px);
-  background: #0d1117;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+/* Lock body scroll when fullscreen editor is open */
+body.fullscreen-editor-open {
+  overflow: hidden !important;
 }
 
 .expanded-editor-block {
-  height: 100% !important;
-  margin-bottom: 0 !important;
-  border: none !important;
-  border-radius: 0 !important;
-  display: flex;
-  flex-direction: column;
+  position: fixed !important;
+  top: 24px !important;
+  left: 24px !important;
+  right: 24px !important;
+  bottom: 24px !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 1400px;
+  margin: 0 auto !important;
+  z-index: 10000 !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 
 .expanded-editor-block .html-live-container {
   flex: 1;
+  min-height: 0;
 }
 
 .expanded-editor-block .html-editor-pane {
   height: 100%;
+  min-height: 0;
 }
 
 /* ===== Inline Code Snippets in Text Blocks ===== */
@@ -948,12 +948,12 @@ a:hover {
     justify-content: center;
   }
 
-  .fullscreen-editor-overlay {
-    padding: 12px;
-  }
-  
-  .fullscreen-editor-modal {
-    height: calc(100vh - 24px);
+  .expanded-editor-block {
+    top: 12px !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    border-radius: var(--radius-sm) !important;
   }
 }
 

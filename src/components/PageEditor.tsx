@@ -814,6 +814,7 @@ let usePdfsFallbackGlobal = false;
                             boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
                           }}>
                             <Editor
+                              key={`${block.id}-${index}`}
                               height="260px"
                               language={block.language}
                               value={block.value}

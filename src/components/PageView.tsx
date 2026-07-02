@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Editor from '@monaco-editor/react';
 import { supabase } from '../supabaseClient';
 import type { LearningPage, QuizSubmission } from '../supabaseClient';
@@ -48,6 +49,18 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Lock body scroll when fullscreen editor is open
+  useEffect(() => {
+    if (expandedBlockId) {
+      document.body.classList.add('fullscreen-editor-open');
+    } else {
+      document.body.classList.remove('fullscreen-editor-open');
+    }
+    return () => {
+      document.body.classList.remove('fullscreen-editor-open');
+    };
+  }, [expandedBlockId]);
 
   const fetchPageAndSubmission = async () => {
     setLoading(true);
@@ -1001,7 +1014,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
                     {/* Split View for HTML/CSS */}
                     {isHtmlOrCss ? (
-                      <div className="html-live-container" style={{ height: fullWidth ? 'calc(100vh - 46px)' : 'auto' }}>
+                      <div className="html-live-container" style={{ height: fullWidth ? '100%' : 'auto' }}>
                         <div className="html-editor-pane">
                           <Editor
                             height={fullWidth ? '100%' : '350px'}
@@ -1042,9 +1055,9 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                     ) : (
                       <>
                         {/* Standard code blocks (JS, Python, C++, PHP, etc.) */}
-                        <div style={{ position: 'relative', flex: fullWidth ? 1 : 'unset', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ flex: fullWidth ? 1 : 'none', height: fullWidth ? '100%' : '300px', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                           <Editor
-                            height={fullWidth ? '450px' : '300px'}
+                            height="100%"
                             language={block.language || 'javascript'}
                             value={cs.code}
                             theme={theme === 'light' ? 'light' : 'vs-dark'}
@@ -1068,7 +1081,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
                         {/* Input Panel (For stdin/prompt) */}
                         {!isHtmlOrCss && block.language !== 'sql' && (
-                          <div className="code-input-panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.01)', borderTop: '1px solid var(--border-glass)' }}>
+                          <div className="code-input-panel" style={{ flexShrink: 0, padding: '12px', background: 'rgba(255,255,255,0.01)', borderTop: '1px solid var(--border-glass)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                               <Terminal size={12} style={{ color: '#a78bfa' }} />
                               <span>Standard Input / prompt (ป้อนค่าสำหรับโปรแกรม - ขึ้นบรรทัดใหม่เมื่อต้องการป้อนหลายค่า)</span>
@@ -1094,7 +1107,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                         )}
 
                         {/* Toolbar */}
-                        <div className="code-editor-toolbar">
+                        <div className="code-editor-toolbar" style={{ flexShrink: 0 }}>
                           <button
                             className="btn code-run-btn"
                             disabled={cs.running}
@@ -1121,12 +1134,12 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
                         {/* Output Panel */}
                         {cs.showOutput && (
-                          <div className="code-output-panel" style={{ maxHeight: fullWidth ? '350px' : '300px' }}>
-                            <div className="code-output-header">
+                          <div className="code-output-panel" style={{ flexShrink: 0, maxHeight: fullWidth ? '350px' : '300px', display: 'flex', flexDirection: 'column' }}>
+                            <div className="code-output-header" style={{ flexShrink: 0 }}>
                               <Terminal size={13} style={{ color: '#34d399' }} />
                               <span>Output</span>
                             </div>
-                            <pre className="code-output-content">
+                            <pre className="code-output-content" style={{ flex: 1, minHeight: 0 }}>
                               {cs.output || (
                                 <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>กำลังรัน...</span>
                               )}
@@ -1140,13 +1153,13 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
                 return (
                   <>
-                    {renderBlockContent(false)}
-                    {isExpanded && (
-                      <div className="fullscreen-editor-overlay">
-                        <div className="fullscreen-editor-modal">
-                          {renderBlockContent(true)}
-                        </div>
-                      </div>
+                    {!isExpanded && renderBlockContent(false)}
+                    {isExpanded && createPortal(
+                      <div className="fullscreen-editor-portal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
+                        <div className="fullscreen-editor-overlay" onClick={() => setExpandedBlockId(null)} />
+                        {renderBlockContent(true)}
+                      </div>,
+                      document.body
                     )}
                   </>
                 );
