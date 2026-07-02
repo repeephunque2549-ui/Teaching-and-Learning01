@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { supabase } from '../supabaseClient';
 import type { ContentBlock, QuizQuestion } from '../supabaseClient';
-import { ArrowLeft, Plus, Trash2, ArrowUp, ArrowDown, Type, Play, FileText, CheckSquare, Save, Upload, Loader, Code2, Copy, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ArrowUp, ArrowDown, Type, Play, FileText, CheckSquare, Save, Upload, Loader, Code2, Copy, ImageIcon, Link2 } from 'lucide-react';
 
 const CODE_LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
@@ -65,6 +65,39 @@ export const PageEditor: React.FC<PageEditorProps> = ({ pageId, onClose, theme }
     } else {
       // Fallback: append at end
       const newValue = currentValue + (currentValue.endsWith('\n') || currentValue === '' ? '' : '\n') + template + '\n';
+      updateBlockValue(blockId, newValue);
+    }
+  };
+
+  // Insert link template at cursor position in a text block's textarea
+  const insertLinkTemplate = (blockId: string) => {
+    const textarea = textareaRefs.current[blockId];
+    const block = blocks.find(b => b.id === blockId);
+    if (!block || block.type !== 'text') return;
+
+    const currentValue = block.value;
+    const template = '[ข้อความที่แสดง](https://example.com)';
+
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = currentValue.slice(start, end);
+      const before = currentValue.slice(0, start);
+      const after = currentValue.slice(end);
+      // If text is selected, wrap it as the link text
+      const linkText = selectedText || 'ข้อความที่แสดง';
+      const finalTemplate = `[${linkText}](https://example.com)`;
+      const newValue = before + finalTemplate + after;
+      updateBlockValue(blockId, newValue);
+      // Restore focus and select the URL part for easy replacement
+      setTimeout(() => {
+        textarea.focus();
+        const urlStart = before.length + linkText.length + 3; // after "[text]("
+        const urlEnd = urlStart + 'https://example.com'.length;
+        textarea.setSelectionRange(urlStart, urlEnd);
+      }, 0);
+    } else {
+      const newValue = currentValue + (currentValue.length > 0 && !currentValue.endsWith('\n') ? ' ' : '') + template;
       updateBlockValue(blockId, newValue);
     }
   };
@@ -702,15 +735,26 @@ let usePdfsFallbackGlobal = false;
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <label className="form-label" style={{ marginBottom: 0 }}>กรอกข้อความ / เนื้อหาหลัก</label>
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => insertCodeTemplate(block.id)}
-                            style={{ gap: '6px', fontSize: '0.82rem', borderColor: 'rgba(167,139,250,0.35)', color: '#a78bfa' }}
-                          >
-                            <Code2 size={14} />
-                            แทรกโค้ด
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => insertLinkTemplate(block.id)}
+                              style={{ gap: '6px', fontSize: '0.82rem', borderColor: 'rgba(96,165,250,0.35)', color: '#60a5fa' }}
+                            >
+                              <Link2 size={14} />
+                              แทรกลิงก์
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => insertCodeTemplate(block.id)}
+                              style={{ gap: '6px', fontSize: '0.82rem', borderColor: 'rgba(167,139,250,0.35)', color: '#a78bfa' }}
+                            >
+                              <Code2 size={14} />
+                              แทรกโค้ด
+                            </button>
+                          </div>
                         </div>
                         <textarea
                           ref={(el) => { textareaRefs.current[block.id] = el; }}
@@ -724,6 +768,12 @@ let usePdfsFallbackGlobal = false;
                           <Copy size={14} style={{ color: '#a78bfa', flexShrink: 0, marginTop: '2px' }} />
                           <span>
                             โค้ดที่อยู่ใน <code>```ภาษา...```</code> จะแสดงเป็นกล่องโค้ดพร้อม<strong style={{ color: 'var(--text-secondary)' }}>ปุ่ม Copy</strong> ให้ผู้ใช้กดคัดลอกได้ทันที
+                          </span>
+                        </div>
+                        <div className="text-editor-hint">
+                          <Link2 size={14} style={{ color: '#60a5fa', flexShrink: 0, marginTop: '2px' }} />
+                          <span>
+                            ลิงก์ในรูปแบบ <code>[ข้อความ](URL)</code> จะแสดงเป็น<strong style={{ color: 'var(--text-secondary)' }}>ลิงก์ที่กดได้</strong> เปิดในแท็บใหม่โดยอัตโนมัติ
                           </span>
                         </div>
                       </div>

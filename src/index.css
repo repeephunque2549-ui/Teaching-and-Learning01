@@ -823,6 +823,48 @@ a:hover {
   border: 1px solid var(--inline-code-border);
 }
 
+/* Clickable links in text blocks */
+.text-block-content a.text-block-link {
+  color: #60a5fa;
+  text-decoration: none;
+  font-weight: 500;
+  position: relative;
+  transition: color 0.25s ease;
+  background-image: linear-gradient(120deg, rgba(96, 165, 250, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%);
+  background-repeat: no-repeat;
+  background-size: 100% 2px;
+  background-position: 0 100%;
+  padding-bottom: 1px;
+}
+
+.text-block-content a.text-block-link:hover {
+  color: #93c5fd;
+  background-image: linear-gradient(120deg, rgba(96, 165, 250, 0.6) 0%, rgba(99, 102, 241, 0.6) 100%);
+  background-size: 100% 2px;
+}
+
+.text-block-content a.text-block-link::after {
+  content: '\2009\2197';
+  font-size: 0.75em;
+  opacity: 0.6;
+  transition: opacity 0.25s ease;
+}
+
+.text-block-content a.text-block-link:hover::after {
+  opacity: 1;
+}
+
+/* Light theme link overrides */
+:root[data-theme="light"] .text-block-content a.text-block-link {
+  color: #2563eb;
+  background-image: linear-gradient(120deg, rgba(37, 99, 235, 0.25) 0%, rgba(99, 102, 241, 0.25) 100%);
+}
+
+:root[data-theme="light"] .text-block-content a.text-block-link:hover {
+  color: #1d4ed8;
+  background-image: linear-gradient(120deg, rgba(37, 99, 235, 0.5) 0%, rgba(99, 102, 241, 0.5) 100%);
+}
+
 /* Editor hint badge */
 .text-editor-hint {
   display: flex;

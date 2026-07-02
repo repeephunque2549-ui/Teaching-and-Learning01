@@ -458,21 +458,41 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     return <>{parts}</>;
   };
 
-  // Render single backtick `code` as inline styled code
+  // Render markdown-style links [text](url) and inline code `code`
   const renderInlineCode = (text: string): React.ReactNode[] => {
-    const inlineRegex = /`([^`]+)`/g;
+    // Combined regex: match links [text](url) or inline code `code`
+    const combinedRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`/g;
     const nodes: React.ReactNode[] = [];
     let last = 0;
     let m;
     let i = 0;
 
-    while ((m = inlineRegex.exec(text)) !== null) {
+    while ((m = combinedRegex.exec(text)) !== null) {
+      // Add plain text before this match
       if (m.index > last) {
         nodes.push(text.slice(last, m.index));
       }
-      nodes.push(
-        <code key={`inline-${i}`} className="inline-code">{m[1]}</code>
-      );
+
+      if (m[1] !== undefined && m[2] !== undefined) {
+        // This is a link match: [text](url)
+        nodes.push(
+          <a
+            key={`link-${i}`}
+            href={m[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-block-link"
+          >
+            {m[1]}
+          </a>
+        );
+      } else if (m[3] !== undefined) {
+        // This is an inline code match: `code`
+        nodes.push(
+          <code key={`inline-${i}`} className="inline-code">{m[3]}</code>
+        );
+      }
+
       last = m.index + m[0].length;
       i++;
     }
