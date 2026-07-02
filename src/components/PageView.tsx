@@ -20,9 +20,10 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
   const [submitting, setSubmitting] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showQuizMode, setShowQuizMode] = useState(false);
-  // Code editor state: per block id -> { code, output, running, showOutput }
+  // Code editor state: per block id -> { code, input, output, running, showOutput }
   const [codeStates, setCodeStates] = useState<Record<string, {
     code: string;
+    input: string;
     output: string;
     running: boolean;
     showOutput: boolean;
@@ -65,11 +66,12 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
       if (pageData) {
         // Initialize code states for code blocks
-        const initialCodeStates: Record<string, { code: string; output: string; running: boolean; showOutput: boolean }> = {};
+        const initialCodeStates: Record<string, { code: string; input: string; output: string; running: boolean; showOutput: boolean }> = {};
         (pageData.content || []).forEach((block: any) => {
           if (block.type === 'code') {
             initialCodeStates[block.id] = {
               code: block.value || '',
+              input: '',
               output: '',
               running: false,
               showOutput: false
@@ -109,7 +111,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
   };
 
   // --- Code Editor helpers ---
-  const updateCodeState = useCallback((blockId: string, patch: Partial<{ code: string; output: string; running: boolean; showOutput: boolean }>) => {
+  const updateCodeState = useCallback((blockId: string, patch: Partial<{ code: string; input: string; output: string; running: boolean; showOutput: boolean }>) => {
     setCodeStates(prev => ({ ...prev, [blockId]: { ...prev[blockId], ...patch } }));
   }, []);
 
@@ -117,6 +119,9 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     const state = codeStates[blockId];
     if (!state) return;
     const code = state.code;
+    const inputVal = state.input || '';
+    const inputLines = inputVal.trim() === '' ? [] : inputVal.split('\n');
+    const escapedInput = JSON.stringify(inputLines);
 
     updateCodeState(blockId, { running: true, showOutput: true, output: '' });
 
@@ -140,6 +145,16 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
           var args = Array.prototype.slice.call(arguments);
           __logs.push('\u274c ' + args.map(String).join(' '));
         };
+        
+        var _inputs = ${escapedInput};
+        var _input_idx = 0;
+        window.prompt = function() {
+          if (_input_idx < _inputs.length) {
+            return _inputs[_input_idx++];
+          }
+          return null;
+        };
+
         try {
           ${escapedCode}
           parent.postMessage({ type: '__code_result__', logs: __logs, error: null }, '*');
@@ -177,6 +192,200 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
           updateCodeState(blockId, { running: false, output: '⏱️ หมดเวลา: โค้ดใช้เวลานานเกินไป หรืออาจมี infinite loop' });
         }
       }, 5000);
+    } else if (language === 'typescript') {
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+
+      iframe.srcdoc = `<!DOCTYPE html><html><head></head><body><script>
+        window.addEventListener('message', async (e) => {
+          if (e.data && e.data.type === 'run_ts') {
+            try {
+              if (typeof ts === 'undefined') {
+                await new Promise((resolve, reject) => {
+                  const s = document.createElement('script');
+                  s.src = "https://cdnjs.cloudflare.com/ajax/libs/typescript/5.0.4/typescript.min.js";
+                  s.onload = resolve;
+                  s.onerror = reject;
+                  document.head.appendChild(s);
+                });
+              }
+              
+              const jsCode = window.ts.transpile(e.data.code);
+              
+              var __logs = [];
+              var consoleLog = function() {
+                var args = Array.prototype.slice.call(arguments);
+                __logs.push(args.map(function(a) {
+                  try { return (typeof a === 'object') ? JSON.stringify(a, null, 2) : String(a); }
+                  catch(err) { return String(a); }
+                }).join(' '));
+              };
+              var consoleError = function() {
+                var args = Array.prototype.slice.call(arguments);
+                __logs.push('❌ ' + args.map(String).join(' '));
+              };
+              
+              var _inputs = JSON.parse(e.data.inputsJson || '[]');
+              var _input_idx = 0;
+              window.prompt = function() {
+                if (_input_idx < _inputs.length) {
+                  return _inputs[_input_idx++];
+                }
+                return null;
+              };
+              
+              const runFn = new Function('console', jsCode);
+              runFn({ log: consoleLog, error: consoleError });
+              
+              let finalOut = __logs.join('\\n');
+              if (!finalOut) finalOut = '(ไม่มี output — ลองใช้ console.log() เพื่อแสดงผลลัพธ์)';
+              parent.postMessage({ type: '__ts_result__', output: finalOut, error: null }, '*');
+            } catch (err) {
+              parent.postMessage({ type: '__ts_result__', output: null, error: err.toString() }, '*');
+            }
+          }
+        });
+        parent.postMessage({ type: '__ts_ready__' }, '*');
+      <\/script></body></html>`;
+
+      const handleMessage = (event: MessageEvent) => {
+        if (!event.data) return;
+        if (event.data.type === '__ts_ready__') {
+          iframe.contentWindow?.postMessage({ type: 'run_ts', code: code, inputsJson: escapedInput }, '*');
+        } else if (event.data.type === '__ts_result__') {
+          window.removeEventListener('message', handleMessage);
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+          runIframeRef.current = null;
+
+          if (event.data.error) {
+            updateCodeState(blockId, { running: false, output: '❌ ' + event.data.error });
+          } else {
+            updateCodeState(blockId, { running: false, output: event.data.output });
+          }
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+      document.body.appendChild(iframe);
+      runIframeRef.current = iframe;
+
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          window.removeEventListener('message', handleMessage);
+          document.body.removeChild(iframe);
+          runIframeRef.current = null;
+          updateCodeState(blockId, { running: false, output: '⏱️ หมดเวลา: การคอมไพล์ TypeScript ใช้เวลานานเกินไป' });
+        }
+      }, 15000);
+    } else if (language === 'sql') {
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+
+      iframe.srcdoc = `<!DOCTYPE html><html><head></head><body><script>
+        window.addEventListener('message', async (e) => {
+          if (e.data && e.data.type === 'run_sql') {
+            try {
+              if (typeof alasql === 'undefined') {
+                await new Promise((resolve, reject) => {
+                  const s = document.createElement('script');
+                  s.src = "https://cdn.jsdelivr.net/npm/alasql@4";
+                  s.onload = resolve;
+                  s.onerror = reject;
+                  document.head.appendChild(s);
+                });
+              }
+              
+              const statements = e.data.code
+                .split(';')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+              
+              let logs = [];
+              const dbName = "db_" + Date.now();
+              alasql("CREATE DATABASE " + dbName);
+              alasql("USE " + dbName);
+              
+              for (const stmt of statements) {
+                const res = alasql(stmt);
+                if (stmt.toLowerCase().startsWith('select')) {
+                  if (Array.isArray(res) && res.length > 0) {
+                    const keys = Object.keys(res[0]);
+                    const widths = {};
+                    keys.forEach(k => {
+                      widths[k] = Math.max(k.length, ...res.map(row => String(row[k] ?? '').length));
+                    });
+                    
+                    const separator = '+' + keys.map(k => '-'.repeat(widths[k] + 2)).join('+') + '+';
+                    const header = '|' + keys.map(k => ' ' + k.padEnd(widths[k]) + ' ').join('|') + '|';
+                    
+                    let tableLines = [separator, header, separator];
+                    res.forEach(row => {
+                      const line = '|' + keys.map(k => {
+                        const val = String(row[k] ?? '');
+                        return ' ' + val.padEnd(widths[k]) + ' ';
+                      }).join('|') + '|';
+                      tableLines.push(line);
+                    });
+                    tableLines.push(separator);
+                    logs.push(tableLines.join('\\n'));
+                  } else {
+                    logs.push("Empty result set (0 rows)");
+                  }
+                } else {
+                  if (Array.isArray(res)) {
+                    logs.push("Query OK, affected rows: " + res.length);
+                  } else if (typeof res === 'number') {
+                    logs.push("Query OK, affected rows/result: " + res);
+                  } else {
+                    logs.push("Query OK");
+                  }
+                }
+              }
+              
+              alasql("DROP DATABASE " + dbName);
+              
+              let finalOut = logs.join('\\n\\n');
+              if (!finalOut) finalOut = 'Query OK (no results)';
+              parent.postMessage({ type: '__sql_result__', output: finalOut, error: null }, '*');
+            } catch (err) {
+              parent.postMessage({ type: '__sql_result__', output: null, error: err.toString() }, '*');
+            }
+          }
+        });
+        parent.postMessage({ type: '__sql_ready__' }, '*');
+      <\/script></body></html>`;
+
+      const handleMessage = (event: MessageEvent) => {
+        if (!event.data) return;
+        if (event.data.type === '__sql_ready__') {
+          iframe.contentWindow?.postMessage({ type: 'run_sql', code: code }, '*');
+        } else if (event.data.type === '__sql_result__') {
+          window.removeEventListener('message', handleMessage);
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+          runIframeRef.current = null;
+
+          if (event.data.error) {
+            updateCodeState(blockId, { running: false, output: '❌ ' + event.data.error });
+          } else {
+            updateCodeState(blockId, { running: false, output: event.data.output });
+          }
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+      document.body.appendChild(iframe);
+      runIframeRef.current = iframe;
+
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          window.removeEventListener('message', handleMessage);
+          document.body.removeChild(iframe);
+          runIframeRef.current = null;
+          updateCodeState(blockId, { running: false, output: '⏱️ หมดเวลา: การโหลดเซิร์ฟเวอร์ SQL ใช้เวลานานเกินไป' });
+        }
+      }, 15000);
     } else if (language === 'python') {
       // Run Python completely in the browser via Pyodide in a sandboxed iframe
       const iframe = document.createElement('iframe');
@@ -201,6 +410,23 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
         '        stdout: function(text) { logs.push(text); },',
         '        stderr: function(text) { logs.push("\\u274c " + text); }',
         '      });',
+        '      var inputsJson = e.data.inputsJson;',
+        '      var injectCode = [',
+        '        "import sys",',
+        '        "import io",',
+        '        "import builtins",',
+        '        "_inputs = " + inputsJson,',
+        '        "_input_idx = 0",',
+        '        "def custom_input(prompt=\'\'):",',
+        '        "    global _input_idx",',
+        '        "    if _input_idx < len(_inputs):",',
+        '        "        val = _inputs[_input_idx]",',
+        '        "        _input_idx += 1",',
+        '        "        return val",',
+        '        "    raise EOFError(\'EOF when reading a line\')",',
+        '        "builtins.input = custom_input"',
+        '      ].join("\\n");',
+        '      await pyodide.runPythonAsync(injectCode);',
         '      await pyodide.runPythonAsync(e.data.code);',
         '      var finalOut = logs.join("\\n");',
         '      if (!finalOut) finalOut = "(ไม่มี output — ลองใช้ print() เพื่อแสดงผลลัพธ์)";',
@@ -218,7 +444,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       const handleMessage = (event: MessageEvent) => {
         if (!event.data) return;
         if (event.data.type === '__python_ready__') {
-          iframe.contentWindow?.postMessage({ type: 'run_python', code: code }, '*');
+          iframe.contentWindow?.postMessage({ type: 'run_python', code: code, inputsJson: JSON.stringify(inputVal.split('\n')) }, '*');
         } else if (event.data.type === '__python_result__') {
           window.removeEventListener('message', handleMessage);
           if (document.body.contains(iframe)) document.body.removeChild(iframe);
@@ -314,17 +540,13 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       }, 15000);
     } else if (language === 'html' || language === 'css') {
       updateCodeState(blockId, { running: false, showOutput: true });
-    } else {
-      // Run C++, Java, Go via Coliru with corsproxy.io proxy wrapper to prevent CORS "Failed to fetch" issues
-      let command = 'python3 main.cpp';
-      if (language === 'cpp') {
-        command = 'g++ -O3 main.cpp && ./a.out';
-      } else if (language === 'c') {
-        command = 'gcc -O3 main.cpp && ./a.out';
-      } else if (language === 'java') {
-        command = 'cat <<\'EOF\' > Main.java\n' + code + '\nEOF\njavac Main.java && java Main';
-      } else if (language === 'go') {
-        command = 'cat <<\'EOF\' > main.go\n' + code + '\nEOF\ngo run main.go';
+    } else if (language === 'cpp' || language === 'c') {
+      // Run C/C++ via Coliru
+      const escapedInput = inputVal.replace(/'/g, "'\\''");
+      const inputCmd = `cat <<'EOF_INPUT' > input.txt\n${escapedInput}\nEOF_INPUT\n`;
+      let command = inputCmd + 'g++ -O3 main.cpp && ./a.out < input.txt';
+      if (language === 'c') {
+        command = inputCmd + 'gcc -O3 main.cpp && ./a.out < input.txt';
       }
 
       // Bypass CORS via corsproxy.io
@@ -349,6 +571,54 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       })
       .then(output => {
         let out = output;
+        if (!out) out = '(โปรแกรมทำงานสำเร็จ แต่ไม่มีข้อมูลแสดงผลออกทางหน้าจอ)';
+        updateCodeState(blockId, { running: false, output: out });
+      })
+      .catch(err => {
+        updateCodeState(blockId, {
+          running: false,
+          output: `❌ เกิดข้อผิดพลาดในการเชื่อมต่อเครื่องเซิร์ฟเวอร์รันโค้ด:\n${err.message}\n\n💡 หมายเหตุ: การเชื่อมต่อผ่าน API ล้มเหลว หรือติดปัญหาเครือข่ายอินเทอร์เน็ต`
+        });
+      });
+    } else if (language === 'java' || language === 'go') {
+      // Run Java and Go via Wandbox since Coliru environment doesn't have javac or go binaries
+      let wandboxCompiler = 'openjdk-jdk-21+35';
+      let processedCode = code;
+      if (language === 'java') {
+        // Strip public modifier to prevent prog.java filename mismatch error
+        processedCode = code.replace(/\bpublic\s+class\b/g, 'class');
+      } else if (language === 'go') {
+        wandboxCompiler = 'go-1.23.2';
+      }
+
+      const targetUrl = 'https://wandbox.org/api/compile.json';
+      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+      fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          compiler: wandboxCompiler,
+          code: processedCode,
+          stdin: inputVal
+        })
+      })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP Error ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(result => {
+        let out = '';
+        if (result.compiler_error || result.compiler_message) {
+          out += '❌ Error/Warning ตอนคอมไพล์:\n' + (result.compiler_error || result.compiler_message) + '\n';
+        }
+        if (result.program_output || result.program_message || result.program_error) {
+          out += result.program_output || result.program_message || result.program_error;
+        }
         if (!out) out = '(โปรแกรมทำงานสำเร็จ แต่ไม่มีข้อมูลแสดงผลออกทางหน้าจอ)';
         updateCodeState(blockId, { running: false, output: out });
       })
@@ -795,6 +1065,33 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                             }}
                           />
                         </div>
+
+                        {/* Input Panel (For stdin/prompt) */}
+                        {!isHtmlOrCss && block.language !== 'sql' && (
+                          <div className="code-input-panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.01)', borderTop: '1px solid var(--border-glass)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                              <Terminal size={12} style={{ color: '#a78bfa' }} />
+                              <span>Standard Input / prompt (ป้อนค่าสำหรับโปรแกรม - ขึ้นบรรทัดใหม่เมื่อต้องการป้อนหลายค่า)</span>
+                            </div>
+                            <textarea
+                              rows={2}
+                              value={cs.input || ''}
+                              onChange={(e) => updateCodeState(block.id, { input: e.target.value })}
+                              placeholder="เช่น:&#10;สมชาย&#10;25"
+                              style={{
+                                width: '100%',
+                                background: 'rgba(0, 0, 0, 0.2)',
+                                border: '1px solid var(--border-glass)',
+                                borderRadius: 'var(--radius-sm)',
+                                color: 'var(--text-primary)',
+                                padding: '8px 12px',
+                                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                                fontSize: '0.85rem',
+                                resize: 'vertical'
+                              }}
+                            />
+                          </div>
+                        )}
 
                         {/* Toolbar */}
                         <div className="code-editor-toolbar">
