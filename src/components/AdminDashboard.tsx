@@ -443,8 +443,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
                     cursor: 'pointer'
                   }}
                 >
-                  <option value="newest">ใหม่สุด</option>
                   <option value="oldest">เก่าสุด</option>
+                  <option value="newest">ใหม่สุด</option>
                   <option value="highest">คะแนนสูงสุด</option>
                   <option value="lowest">คะแนนต่ำสุด</option>
                 </select>

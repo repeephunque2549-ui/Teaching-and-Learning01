@@ -145,8 +145,8 @@ export const LessonFilters: React.FC<LessonFiltersProps> = ({
             cursor: 'pointer'
           }}
         >
-          <option value="newest">ใหม่สุด</option>
           <option value="oldest">เก่าสุด</option>
+          <option value="newest">ใหม่สุด</option>
           <option value="alphabetical">ตามตัวอักษร (ก-ฮ)</option>
         </select>
       </div>
