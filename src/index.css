@@ -729,6 +729,9 @@ body.fullscreen-editor-open {
   white-space: pre-line;
   font-size: 1.05rem;
   line-height: 1.7;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .text-block-content .inline-code-snippet {
