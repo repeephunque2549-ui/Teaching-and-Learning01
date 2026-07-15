@@ -2,6 +2,7 @@ import { useEffect, useState, lazy, Suspense } from 'react';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import type { DatabaseProfile } from './supabaseClient';
 import { LogOut, User, ShieldAlert, GraduationCap, Loader, Sun, Moon } from 'lucide-react';
+import { AnimatedBackground } from './components/AnimatedBackground';
 
 // Lazy-load heavy components to reduce initial bundle size
 const AuthView = lazy(() => import('./components/AuthView').then(m => ({ default: m.AuthView })));
@@ -220,7 +221,8 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
         minHeight: '100vh',
         backgroundColor: 'var(--bg-primary)'
       }}>
-        <div className="loading-wrapper" style={{ margin: '0 auto' }}>
+        <AnimatedBackground isDark={theme === 'dark'} />
+        <div className="loading-wrapper" style={{ margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <div className="loading-spinner-glow">
             <Loader className="spin-anim" size={44} style={{ color: 'var(--color-brand)', position: 'relative', zIndex: 1 }} />
           </div>
@@ -235,7 +237,8 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
   if (!session || !profile) {
     return (
       <>
-        <header className="navbar">
+        <AnimatedBackground isDark={theme === 'dark'} />
+        <header className="navbar" style={{ position: 'relative', zIndex: 2 }}>
           <div className="container navbar-container">
             <div className="brand-logo">
               <GraduationCap size={28} />
@@ -263,7 +266,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
             </button>
           </div>
         </header>
-        <main className="container">
+        <main className="container" style={{ position: 'relative', zIndex: 1 }}>
           <Suspense fallback={<SuspenseFallback />}>
             <AuthView onAuthSuccess={handleAuthSuccess} />
           </Suspense>
@@ -274,8 +277,9 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
 
   return (
     <>
+      <AnimatedBackground isDark={theme === 'dark'} />
       {/* Top Navbar */}
-      <header className="navbar">
+      <header className="navbar" style={{ position: 'relative', zIndex: 2 }}>
         <div className="container navbar-container">
           <div className="brand-logo" style={{ cursor: 'pointer' }} onClick={() => {
             setCurrentView('dashboard');
@@ -345,7 +349,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
       </header>
 
       {/* Main Content Areas */}
-      <main className="container" style={{ padding: '40px 24px' }}>
+      <main className="container" style={{ padding: '40px 24px', position: 'relative', zIndex: 1 }}>
         <Suspense fallback={<SuspenseFallback />}>
           {/* Use key to trigger fade-in animation on view change */}
           <div key={currentView + (activeSlug || activePageId || '')} className="view-fade-in">
