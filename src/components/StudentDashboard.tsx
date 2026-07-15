@@ -15,7 +15,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'incomplete'>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alphabetical'>('oldest');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alphabetical'>('newest');
 
   const fetchStudentData = async () => {
     setLoading(true);
@@ -80,7 +80,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setStatusFilter('all');
-    setSortBy('oldest');
+    setSortBy('newest');
   }, []);
 
   useEffect(() => {
