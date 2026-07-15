@@ -107,7 +107,7 @@ body.light-theme {
 
   --btn-danger-text: #dc2626;
   --btn-secondary-hover-bg: rgba(0, 0, 0, 0.04);
-  --code-snippet-pre-color: #1e293b;
+  --code-snippet-pre-color: #e6edf3;
   --code-snippet-lang-color: #6d28d9;
   --code-lang-badge-color: #6d28d9;
   --code-hint-code-color: #4f46e5;
@@ -866,6 +866,62 @@ body.fullscreen-editor-open {
 :root[data-theme="light"] .text-block-content a.text-block-link:hover {
   color: #1d4ed8;
   background-image: linear-gradient(120deg, rgba(37, 99, 235, 0.5) 0%, rgba(99, 102, 241, 0.5) 100%);
+}
+
+/* ===== Light Theme: Code Snippet Overrides ===== */
+body.light-theme .text-block-content .inline-code-snippet {
+  background: #1e293b;
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+body.light-theme .inline-code-snippet .code-snippet-header {
+  background: rgba(99, 102, 241, 0.08);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+body.light-theme .inline-code-snippet .code-snippet-lang {
+  color: #c4b5fd;
+  background: rgba(167, 139, 250, 0.15);
+}
+
+body.light-theme .inline-code-snippet .code-snippet-copy-btn {
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.light-theme .inline-code-snippet .code-snippet-copy-btn:hover {
+  color: #e2e8f0;
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+body.light-theme .inline-code-snippet .code-snippet-body pre {
+  color: #e6edf3;
+}
+
+body.light-theme .code-editor-block {
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+body.light-theme .code-editor-header {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+body.light-theme .code-lang-badge {
+  color: #c4b5fd;
+}
+
+body.light-theme .code-output-content {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+body.light-theme .code-output-header {
+  background: rgba(52, 211, 153, 0.08);
+  color: #34d399;
+  border-bottom-color: rgba(52, 211, 153, 0.12);
 }
 
 /* Editor hint badge */

@@ -6,7 +6,7 @@ interface Orb {
   baseX: number;
   baseY: number;
   radius: number;
-  color: string;
+  colorIdx: number;
   alpha: number;
   vx: number;
   vy: number;
@@ -25,6 +25,24 @@ interface Particle {
   maxLife: number;
 }
 
+const DARK_COLORS = [
+  [99, 102, 241, 0.12],   // indigo
+  [139, 92, 246, 0.10],   // violet
+  [59, 130, 246, 0.08],   // blue
+  [167, 139, 250, 0.09],  // purple
+  [96, 165, 250, 0.07],   // sky
+  [129, 140, 248, 0.10],  // indigo lighter
+];
+
+const LIGHT_COLORS = [
+  [99, 102, 241, 0.10],
+  [139, 92, 246, 0.08],
+  [59, 130, 246, 0.07],
+  [167, 139, 250, 0.08],
+  [96, 165, 250, 0.06],
+  [129, 140, 248, 0.09],
+];
+
 export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: -1000, y: -1000, active: false });
@@ -32,26 +50,14 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
   const particlesRef = useRef<Particle[]>([]);
   const animationRef = useRef<number>(0);
   const timeRef = useRef(0);
+  const isDarkRef = useRef(isDark);
+
+  // Keep isDarkRef in sync with the prop
+  useEffect(() => {
+    isDarkRef.current = isDark;
+  }, [isDark]);
 
   const createOrbs = useCallback((width: number, height: number) => {
-    const colors = isDark
-      ? [
-          'rgba(99, 102, 241, 0.12)',   // indigo
-          'rgba(139, 92, 246, 0.10)',    // violet
-          'rgba(59, 130, 246, 0.08)',    // blue
-          'rgba(167, 139, 250, 0.09)',   // purple
-          'rgba(96, 165, 250, 0.07)',    // sky
-          'rgba(129, 140, 248, 0.10)',   // indigo lighter
-        ]
-      : [
-          'rgba(99, 102, 241, 0.08)',
-          'rgba(139, 92, 246, 0.06)',
-          'rgba(59, 130, 246, 0.05)',
-          'rgba(167, 139, 250, 0.06)',
-          'rgba(96, 165, 250, 0.05)',
-          'rgba(129, 140, 248, 0.07)',
-        ];
-
     const orbs: Orb[] = [];
     const count = Math.min(8, Math.max(5, Math.floor((width * height) / 200000)));
 
@@ -64,7 +70,7 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
         baseX: x,
         baseY: y,
         radius: 100 + Math.random() * 250,
-        color: colors[i % colors.length],
+        colorIdx: i % 6,
         alpha: 0.5 + Math.random() * 0.5,
         vx: (Math.random() - 0.5) * 0.3,
         vy: (Math.random() - 0.5) * 0.3,
@@ -73,7 +79,7 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
       });
     }
     return orbs;
-  }, [isDark]);
+  }, []);
 
   const spawnParticles = useCallback((x: number, y: number, count: number = 3) => {
     const newParticles: Particle[] = [];
@@ -92,7 +98,6 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
       });
     }
     particlesRef.current.push(...newParticles);
-    // Cap particles
     if (particlesRef.current.length > 60) {
       particlesRef.current = particlesRef.current.slice(-60);
     }
@@ -113,7 +118,7 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
       canvas.height = window.innerHeight * dpr;
       canvas.style.width = window.innerWidth + 'px';
       canvas.style.height = window.innerHeight + 'px';
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       orbsRef.current = createOrbs(window.innerWidth, window.innerHeight);
     };
 
@@ -125,7 +130,6 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
       mouseRef.current.x = clientX;
       mouseRef.current.y = clientY;
       mouseRef.current.active = true;
-      // Spawn particles on move (throttled by frame)
       if (Math.random() < 0.3) {
         spawnParticles(clientX, clientY, 1);
       }
@@ -156,11 +160,12 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
     window.addEventListener('mouseleave', handlePointerLeave);
     window.addEventListener('touchend', handlePointerLeave);
 
-    // Animation loop
+    // Animation loop — reads isDarkRef.current for real-time theme
     const animate = () => {
-      timeRef.current += 0.016; // ~60fps
+      timeRef.current += 0.016;
       const w = window.innerWidth;
       const h = window.innerHeight;
+      const dark = isDarkRef.current;
 
       ctx.clearRect(0, 0, w, h);
 
@@ -168,18 +173,17 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
       const my = mouseRef.current.y;
       const mouseActive = mouseRef.current.active;
 
+      const palette = dark ? DARK_COLORS : LIGHT_COLORS;
+
       // Draw orbs
       orbsRef.current.forEach((orb) => {
-        // Gentle floating motion
         orb.phase += 0.005 * orb.speed;
         const floatX = Math.sin(orb.phase) * 40;
         const floatY = Math.cos(orb.phase * 0.7) * 30;
 
-        // Drift slowly
         orb.baseX += orb.vx;
         orb.baseY += orb.vy;
 
-        // Bounce off edges
         if (orb.baseX < -orb.radius) orb.baseX = w + orb.radius;
         if (orb.baseX > w + orb.radius) orb.baseX = -orb.radius;
         if (orb.baseY < -orb.radius) orb.baseY = h + orb.radius;
@@ -188,35 +192,30 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
         let targetX = orb.baseX + floatX;
         let targetY = orb.baseY + floatY;
 
-        // Mouse attraction / repulsion
         if (mouseActive) {
           const dx = mx - targetX;
           const dy = my - targetY;
           const dist = Math.sqrt(dx * dx + dy * dy);
           const influence = Math.max(0, 1 - dist / 400);
-          // Gentle attraction toward mouse
           targetX += dx * influence * 0.08;
           targetY += dy * influence * 0.08;
-          // Slightly increase alpha near mouse
           orb.alpha = Math.min(1, 0.5 + influence * 0.5);
         } else {
           orb.alpha += (0.5 - orb.alpha) * 0.02;
         }
 
-        // Smooth interpolation
         orb.x += (targetX - orb.x) * 0.03;
         orb.y += (targetY - orb.y) * 0.03;
 
-        // Draw gradient orb
+        // Get color from palette based on current theme
+        const [r, g, b, baseAlpha] = palette[orb.colorIdx];
         const gradient = ctx.createRadialGradient(
           orb.x, orb.y, 0,
           orb.x, orb.y, orb.radius
         );
-        const baseColor = orb.color.replace(/[\d.]+\)$/, '');
-        const alphaVal = parseFloat(orb.color.match(/[\d.]+\)$/)?.[0] || '0.1');
-        gradient.addColorStop(0, baseColor + (alphaVal * orb.alpha * 1.5).toFixed(3) + ')');
-        gradient.addColorStop(0.5, baseColor + (alphaVal * orb.alpha * 0.6).toFixed(3) + ')');
-        gradient.addColorStop(1, baseColor + '0)');
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${(baseAlpha * orb.alpha * 1.5).toFixed(3)})`);
+        gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${(baseAlpha * orb.alpha * 0.6).toFixed(3)})`);
+        gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
 
         ctx.beginPath();
         ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
@@ -228,7 +227,7 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
       if (mouseActive) {
         const glowRadius = 180;
         const glowGradient = ctx.createRadialGradient(mx, my, 0, mx, my, glowRadius);
-        if (isDark) {
+        if (dark) {
           glowGradient.addColorStop(0, 'rgba(99, 102, 241, 0.08)');
           glowGradient.addColorStop(0.4, 'rgba(139, 92, 246, 0.04)');
           glowGradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
@@ -244,6 +243,7 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
       }
 
       // Draw and update particles
+      const particleColor = dark ? [167, 139, 250] : [99, 102, 241];
       particlesRef.current = particlesRef.current.filter((p) => {
         p.life++;
         if (p.life >= p.maxLife) return false;
@@ -258,32 +258,27 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
           ? p.alpha * (progress / 0.2)
           : p.alpha * (1 - (progress - 0.2) / 0.8);
 
-        const color = isDark
-          ? `rgba(167, 139, 250, ${fadeAlpha.toFixed(3)})`
-          : `rgba(99, 102, 241, ${fadeAlpha.toFixed(3)})`;
-
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius * (1 - progress * 0.5), 0, Math.PI * 2);
-        ctx.fillStyle = color;
+        ctx.fillStyle = `rgba(${particleColor[0]}, ${particleColor[1]}, ${particleColor[2]}, ${fadeAlpha.toFixed(3)})`;
         ctx.fill();
 
         return true;
       });
 
-      // Floating ambient particles (always visible)
+      // Floating ambient particles
       const ambientCount = 3;
+      const ambientColor = dark ? [167, 139, 250] : [99, 102, 241];
       for (let i = 0; i < ambientCount; i++) {
         const t = timeRef.current + i * 100;
         const ax = (Math.sin(t * 0.2 + i * 2.1) * 0.5 + 0.5) * w;
         const ay = (Math.cos(t * 0.15 + i * 1.7) * 0.5 + 0.5) * h;
-        const aAlpha = (Math.sin(t * 0.5 + i) * 0.5 + 0.5) * (isDark ? 0.15 : 0.08);
+        const aAlpha = (Math.sin(t * 0.5 + i) * 0.5 + 0.5) * (dark ? 0.15 : 0.08);
         const aRadius = 2 + Math.sin(t * 0.3 + i) * 1;
 
         ctx.beginPath();
         ctx.arc(ax, ay, aRadius, 0, Math.PI * 2);
-        ctx.fillStyle = isDark
-          ? `rgba(167, 139, 250, ${aAlpha.toFixed(3)})`
-          : `rgba(99, 102, 241, ${aAlpha.toFixed(3)})`;
+        ctx.fillStyle = `rgba(${ambientColor[0]}, ${ambientColor[1]}, ${ambientColor[2]}, ${aAlpha.toFixed(3)})`;
         ctx.fill();
       }
 
@@ -301,7 +296,7 @@ export function AnimatedBackground({ isDark = true }: { isDark?: boolean }) {
       window.removeEventListener('mouseleave', handlePointerLeave);
       window.removeEventListener('touchend', handlePointerLeave);
     };
-  }, [isDark, createOrbs, spawnParticles]);
+  }, [createOrbs, spawnParticles]);
 
   return (
     <canvas
