@@ -18,10 +18,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
   // Search & Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [searchPagesQuery, setSearchPagesQuery] = useState('');
-  const [sortPagesBy, setSortPagesBy] = useState<'newest' | 'oldest' | 'alphabetical'>('newest');
+  const [sortPagesBy, setSortPagesBy] = useState<'newest' | 'oldest' | 'alphabetical'>('oldest');
   const [statusPagesFilter, setStatusPagesFilter] = useState<'all' | 'completed' | 'incomplete'>('all');
   const [selectedPageId, setSelectedPageId] = useState('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('oldest');
 
   const fetchData = async () => {
     setLoading(true);
@@ -247,7 +247,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
                 </p>
                 <button className="btn btn-secondary btn-sm" onClick={() => {
                   setSearchPagesQuery('');
-                  setSortPagesBy('newest');
+                  setSortPagesBy('oldest');
                   setStatusPagesFilter('all');
                 }}>
                   ล้างตัวกรอง
@@ -471,7 +471,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditPage, onVi
                 <button className="btn btn-secondary btn-sm" onClick={() => {
                   setSearchQuery('');
                   setSelectedPageId('all');
-                  setSortBy('newest');
+                  setSortBy('oldest');
                 }}>
                   ล้างตัวกรอง
                 </button>
