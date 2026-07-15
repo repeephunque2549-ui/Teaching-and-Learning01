@@ -15,7 +15,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'incomplete'>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alphabetical'>('newest');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alphabetical'>('oldest');
 
   const fetchStudentData = async () => {
     setLoading(true);
@@ -24,7 +24,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
       const { data: pageData, error: pageError } = await supabase
         .from('learning_pages')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (pageError) throw pageError;
       setPages(pageData || []);
@@ -80,7 +80,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onViewPage, 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setStatusFilter('all');
-    setSortBy('newest');
+    setSortBy('oldest');
   }, []);
 
   useEffect(() => {
