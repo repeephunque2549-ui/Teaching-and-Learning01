@@ -242,7 +242,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
           <div className="container navbar-container">
             <div className="brand-logo">
               <GraduationCap size={28} />
-              <span>EduSphere</span>
+              <span>TC LINUX</span>
             </div>
             <button 
               onClick={toggleTheme} 
@@ -286,7 +286,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}
             window.history.pushState({ view: 'dashboard' }, '', '/');
           }}>
             <GraduationCap size={28} />
-            <span>EduSphere</span>
+            <span>TC LINUX</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
