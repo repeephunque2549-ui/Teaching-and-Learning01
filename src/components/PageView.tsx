@@ -30,6 +30,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     showOutput: boolean;
   }>>({});
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [copiedSnippetId, setCopiedSnippetId] = useState<string | null>(null);
   const runIframeRef = useRef<HTMLIFrameElement | null>(null);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,15 +45,16 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setExpandedBlockId(null);
+        setExpandedImage(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Lock body scroll when fullscreen editor is open
+  // Lock body scroll when fullscreen editor is open or image is expanded
   useEffect(() => {
-    if (expandedBlockId) {
+    if (expandedBlockId || expandedImage) {
       document.body.classList.add('fullscreen-editor-open');
     } else {
       document.body.classList.remove('fullscreen-editor-open');
@@ -60,7 +62,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     return () => {
       document.body.classList.remove('fullscreen-editor-open');
     };
-  }, [expandedBlockId]);
+  }, [expandedBlockId, expandedImage]);
 
   const fetchPageAndSubmission = async () => {
     setLoading(true);
@@ -1234,13 +1236,17 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                       <img
                         src={block.value}
                         alt={block.caption || 'รูปภาพประกอบบทเรียน'}
+                        onClick={() => setExpandedImage(block.value)}
                         style={{
                           maxWidth: '100%',
                           borderRadius: '12px',
                           boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
                           display: 'block',
-                          margin: '0 auto'
+                          margin: '0 auto',
+                          cursor: 'zoom-in',
+                          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
                         }}
+                        className="interactive-image"
                       />
                       {block.caption && (
                         <p style={{
@@ -1270,38 +1276,61 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                     </h3>
 
                     {showResults && (
-                      <div style={{ marginBottom: '24px' }}>
+                      <div style={{ marginBottom: '32px' }}>
                         <div style={{
-                          background: 'var(--color-success-glow)',
-                          border: '1px solid rgba(16, 185, 129, 0.2)',
-                          padding: '16px',
-                          borderRadius: 'var(--radius-md)',
-                          marginBottom: '12px',
+                          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          padding: '32px',
+                          borderRadius: '16px',
+                          marginBottom: '16px',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'space-between'
+                          justifyContent: 'space-between',
+                          boxShadow: '0 8px 32px rgba(16, 185, 129, 0.1)',
+                          backdropFilter: 'blur(10px)',
+                          flexWrap: 'wrap',
+                          gap: '20px'
                         }}>
                           <div>
-                            <strong style={{ color: 'var(--color-success)', display: 'block', fontSize: '1.1rem' }}>คุณได้ทำการทดสอบแล้ว</strong>
+                            <h4 style={{ color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.4rem', margin: '0 0 8px 0' }}>
+                              <CheckCircle2 size={24} /> สรุปผลการทดสอบ
+                            </h4>
+                            <p style={{ color: 'var(--text-primary)', fontSize: '1.05rem', margin: '0 0 4px 0' }}>
+                              ทำแบบทดสอบเสร็จสิ้น
+                            </p>
                             <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>ส่งเมื่อ {new Date(submission?.created_at || '').toLocaleString('th-TH')}</span>
                           </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-success)' }}>
-                              {submission?.score} / {submission?.total_questions}
+                          <div style={{ 
+                            textAlign: 'center', 
+                            background: 'rgba(16, 185, 129, 0.1)', 
+                            borderRadius: '50%', 
+                            width: '100px', 
+                            height: '100px', 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            border: '4px solid rgba(16, 185, 129, 0.4)',
+                            boxShadow: '0 0 20px rgba(16, 185, 129, 0.2) inset, 0 0 20px rgba(16, 185, 129, 0.2)'
+                          }}>
+                            <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-success)', lineHeight: '1' }}>
+                              {submission?.score}
                             </span>
-                            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>คะแนนที่ได้</span>
+                            <span style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-success)', fontWeight: 600, borderTop: '1px solid rgba(16, 185, 129, 0.2)', paddingTop: '4px', marginTop: '4px', width: '60%' }}>
+                              เต็ม {submission?.total_questions}
+                            </span>
                           </div>
                         </div>
                         {userRole !== 'admin' && submission && (
                           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                             <button
-                              className="btn btn-secondary btn-sm"
+                              className="btn btn-secondary"
                               onClick={handleRetakeQuiz}
                               disabled={submitting}
-                              style={{ gap: '6px' }}
+                              style={{ gap: '8px', padding: '10px 20px', borderRadius: '12px' }}
                             >
-                              <RefreshCw size={14} className={submitting ? 'spin-anim' : ''} />
-                              ทำแบบทดสอบใหม่
+                              <RefreshCw size={16} className={submitting ? 'spin-anim' : ''} />
+                              ทำแบบทดสอบใหม่อีกครั้ง
                             </button>
                           </div>
                         )}
@@ -1380,23 +1409,30 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
                     )}
                   </div>
                 ) : (
-                  <div className="quiz-card" style={{ boxShadow: 'var(--shadow-glow)', textAlign: 'center', padding: '36px 20px' }}>
-                    <h3 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      <HelpCircle size={22} style={{ color: 'var(--color-brand)' }} />
+                  <div className="quiz-card" style={{ 
+                    boxShadow: 'var(--shadow-glow)', 
+                    textAlign: 'center', 
+                    padding: '36px 20px', 
+                    borderRadius: '16px', 
+                    background: showResults ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%)' : 'var(--bg-secondary)', 
+                    border: showResults ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid var(--border-glass)' 
+                  }}>
+                    <h3 style={{ fontSize: '1.4rem', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: showResults ? 'var(--color-success)' : 'var(--text-heading)' }}>
+                      {showResults ? <CheckCircle2 size={24} /> : <HelpCircle size={24} style={{ color: 'var(--color-brand)' }} />}
                       แบบทดสอบท้ายบทเรียน
                     </h3>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '1rem' }}>
+                    <p style={{ color: showResults ? 'var(--text-primary)' : 'var(--text-secondary)', marginBottom: '24px', fontSize: '1.05rem', lineHeight: '1.6' }}>
                       {showResults 
-                        ? `คุณทำแบบทดสอบเสร็จสิ้นแล้ว คะแนนที่ได้: ${submission?.score} / ${submission?.total_questions}`
+                        ? <span>คุณทำแบบทดสอบเสร็จสิ้นแล้ว ได้คะแนน <strong style={{ color: 'var(--color-success)', fontSize: '1.2rem', margin: '0 4px' }}>{submission?.score} / {submission?.total_questions}</strong> คะแนน</span>
                         : 'แบบทดสอบสำหรับประเมินความเข้าใจของคุณหลังจากเรียนรู้เนื้อหาเรียบร้อยแล้ว'}
                     </p>
                     <button
                       onClick={() => setShowQuizMode(true)}
-                      className="btn btn-primary"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 28px', cursor: 'pointer', border: 'none' }}
+                      className={showResults ? "btn btn-secondary" : "btn btn-primary"}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 28px', cursor: 'pointer', borderRadius: '12px' }}
                     >
-                      <ClipboardList size={16} />
-                      {showResults ? 'ดูผลคะแนน / ทำแบบทดสอบใหม่' : 'เริ่มทำแบบทดสอบ'}
+                      <ClipboardList size={18} />
+                      {showResults ? 'ดูรายละเอียด / ทำใหม่' : 'เริ่มทำแบบทดสอบ'}
                     </button>
                   </div>
                 )
@@ -1405,6 +1441,32 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
           );
         })}
       </div>
+      {expandedImage && createPortal(
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 10000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px', cursor: 'zoom-out'
+          }}
+          onClick={() => setExpandedImage(null)}
+        >
+          <img
+            src={expandedImage}
+            alt="Expanded image"
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+            }}
+          />
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
