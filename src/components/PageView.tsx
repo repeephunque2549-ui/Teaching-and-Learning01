@@ -32,6 +32,14 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [copiedSnippetId, setCopiedSnippetId] = useState<string | null>(null);
+  const [quizAlert, setQuizAlert] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'score' | 'info';
+    title?: string;
+    message: string;
+    score?: number;
+    total?: number;
+  } | null>(null);
   const runIframeRef = useRef<HTMLIFrameElement | null>(null);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -816,11 +824,15 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
     // Verify all questions have been answered
     const unanswered = questions.filter(q => userAnswers[q.id] === undefined);
     if (unanswered.length > 0) {
-      return alert('กรุณาตอบคำถามให้ครบทุกข้อก่อนส่งคำตอบครับ');
+      return setQuizAlert({
+        show: true, type: 'error', title: 'แจ้งเตือน', message: 'กรุณาตอบคำถามให้ครบทุกข้อก่อนส่งคำตอบครับ'
+      });
     }
 
     if (userRole === 'admin') {
-      return alert('สำหรับผู้แลระบบ (Admin) หน้าทดสอบนี้เป็นการพรีวิวเท่านั้น ไม่สามารถบันทึกคะแนนลงระบบได้');
+      return setQuizAlert({
+        show: true, type: 'info', title: 'สำหรับผู้ดูแลระบบ', message: 'สำหรับผู้ดูแลระบบ (Admin) หน้าทดสอบนี้เป็นการพรีวิวเท่านั้น ไม่สามารถบันทึกคะแนนลงระบบได้'
+      });
     }
 
     setSubmitting(true);
@@ -852,9 +864,13 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
 
       setSubmission(data);
       setShowResults(true);
-      alert(`คุณทำควิซเสร็จสิ้นแล้ว! คะแนนที่ได้: ${calculatedScore} / ${questions.length}`);
+      setQuizAlert({
+        show: true, type: 'score', title: 'ส่งคำตอบสำเร็จ!', message: 'บันทึกคะแนนของคุณลงในระบบเรียบร้อยแล้ว', score: calculatedScore, total: questions.length
+      });
     } catch (err: any) {
-      alert('เกิดข้อผิดพลาดในการส่งคำตอบ: ' + err.message);
+      setQuizAlert({
+        show: true, type: 'error', title: 'เกิดข้อผิดพลาด', message: 'เกิดข้อผิดพลาดในการส่งคำตอบ: ' + err.message
+      });
     } finally {
       setSubmitting(false);
     }
@@ -880,9 +896,13 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       setSubmission(null);
       setUserAnswers({});
       setShowResults(false);
-      alert('ลบคะแนนเดิมเรียบร้อยแล้ว คุณสามารถทำแบบทดสอบใหม่ได้ทันที');
+      setQuizAlert({
+        show: true, type: 'success', title: 'รีเซ็ตสำเร็จ', message: 'ลบคะแนนเดิมเรียบร้อยแล้ว คุณสามารถทำแบบทดสอบใหม่ได้ทันที'
+      });
     } catch (err: any) {
-      alert('เกิดข้อผิดพลาดในการลบคำตอบเดิม: ' + err.message);
+      setQuizAlert({
+        show: true, type: 'error', title: 'เกิดข้อผิดพลาด', message: 'เกิดข้อผิดพลาดในการลบคำตอบเดิม: ' + err.message
+      });
     } finally {
       setSubmitting(false);
     }
@@ -1464,6 +1484,69 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
               boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
             }}
           />
+        </div>,
+        document.body
+      )}
+      {quizAlert && quizAlert.show && createPortal(
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px', animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div className="card-glass" style={{
+            maxWidth: '450px', width: '100%', padding: '32px', textAlign: 'center',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)', borderRadius: '20px',
+            transform: 'scale(1)', animation: 'scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}>
+            {quizAlert.type === 'score' && (
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                  borderRadius: '50%', width: '120px', height: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  border: '6px solid rgba(16, 185, 129, 0.4)', margin: '0 auto 20px auto',
+                  boxShadow: '0 0 30px rgba(16, 185, 129, 0.3)'
+                }}>
+                  <span style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-success)', lineHeight: '1' }}>
+                    {quizAlert.score}
+                  </span>
+                  <span style={{ display: 'block', fontSize: '1rem', color: 'var(--color-success)', fontWeight: 600, borderTop: '2px solid rgba(16, 185, 129, 0.3)', paddingTop: '4px', marginTop: '4px', width: '70%' }}>
+                    เต็ม {quizAlert.total}
+                  </span>
+                </div>
+                <h3 style={{ fontSize: '1.5rem', color: 'var(--text-heading)', marginBottom: '8px' }}>{quizAlert.title}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem' }}>{quizAlert.message}</p>
+              </div>
+            )}
+            {quizAlert.type === 'error' && (
+              <div style={{ marginBottom: '24px' }}>
+                <XCircle size={64} style={{ color: 'var(--color-error)', margin: '0 auto 16px auto' }} />
+                <h3 style={{ fontSize: '1.5rem', color: 'var(--color-error)', marginBottom: '8px' }}>{quizAlert.title}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem' }}>{quizAlert.message}</p>
+              </div>
+            )}
+            {quizAlert.type === 'success' && (
+              <div style={{ marginBottom: '24px' }}>
+                <CheckCircle2 size={64} style={{ color: 'var(--color-success)', margin: '0 auto 16px auto' }} />
+                <h3 style={{ fontSize: '1.5rem', color: 'var(--color-success)', marginBottom: '8px' }}>{quizAlert.title}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem' }}>{quizAlert.message}</p>
+              </div>
+            )}
+            {quizAlert.type === 'info' && (
+              <div style={{ marginBottom: '24px' }}>
+                <HelpCircle size={64} style={{ color: 'var(--color-brand)', margin: '0 auto 16px auto' }} />
+                <h3 style={{ fontSize: '1.5rem', color: 'var(--text-heading)', marginBottom: '8px' }}>{quizAlert.title}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem' }}>{quizAlert.message}</p>
+              </div>
+            )}
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '12px', fontSize: '1.1rem', borderRadius: '12px' }}
+              onClick={() => setQuizAlert(null)}
+            >
+              ตกลง
+            </button>
+          </div>
         </div>,
         document.body
       )}
