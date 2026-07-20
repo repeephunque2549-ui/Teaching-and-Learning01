@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/compile/coliru",
+      "destination": "https://coliru.stacked-crooked.com/compile"
+    },
+    {
+      "source": "/api/compile/wandbox",
+      "destination": "https://wandbox.org/api/compile.json"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

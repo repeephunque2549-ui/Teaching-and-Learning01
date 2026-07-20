@@ -572,9 +572,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
         command = inputCmd + 'gcc -O3 main.cpp && ./a.out < input.txt';
       }
 
-      // Bypass CORS via corsproxy.io
-      const targetUrl = 'https://coliru.stacked-crooked.com/compile';
-      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+      const proxyUrl = '/api/compile/coliru';
 
       fetch(proxyUrl, {
         method: 'POST',
@@ -614,8 +612,7 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
         wandboxCompiler = 'go-1.23.2';
       }
 
-      const targetUrl = 'https://wandbox.org/api/compile.json';
-      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+      const proxyUrl = '/api/compile/wandbox';
 
       fetch(proxyUrl, {
         method: 'POST',

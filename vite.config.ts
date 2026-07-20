@@ -4,6 +4,20 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      '/api/compile/coliru': {
+        target: 'https://coliru.stacked-crooked.com/compile',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/compile\/coliru/, '')
+      },
+      '/api/compile/wandbox': {
+        target: 'https://wandbox.org/api/compile.json',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/compile\/wandbox/, '')
+      }
+    }
+  },
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
