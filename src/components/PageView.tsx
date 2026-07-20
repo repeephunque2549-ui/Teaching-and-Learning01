@@ -603,26 +603,33 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       });
     } else if (language === 'java' || language === 'go') {
       // Run Java and Go via Wandbox since Coliru environment doesn't have javac or go binaries
-      let wandboxCompiler = 'openjdk-jdk-21+35';
+      // Run Java and Go via Godbolt since Wandbox is unstable
+      let compilerId = 'java2100';
       let processedCode = code;
       if (language === 'java') {
-        // Strip public modifier to prevent prog.java filename mismatch error
+        // Strip public modifier to prevent filename mismatch error in Godbolt
         processedCode = code.replace(/\bpublic\s+class\b/g, 'class');
       } else if (language === 'go') {
-        wandboxCompiler = 'go-1.23.2';
+        compilerId = 'gl1238';
       }
 
-      const proxyUrl = '/api/compile/wandbox';
+      const proxyUrl = `/api/compile/godbolt/${compilerId}`;
 
       fetch(proxyUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify({
-          compiler: wandboxCompiler,
-          code: processedCode,
-          stdin: inputVal
+          source: processedCode,
+          options: {
+            compilerOptions: { executorRequest: true },
+            filters: { execute: true },
+            executeParameters: { stdin: inputVal }
+          },
+          lang: language,
+          allowStoreCodeDebug: true
         })
       })
       .then(res => {
@@ -633,14 +640,28 @@ export const PageView: React.FC<PageViewProps> = ({ slug, userId, userRole, onBa
       })
       .then(result => {
         let out = '';
-        if (result.compiler_error || result.compiler_message) {
-          out += '❌ Error/Warning ตอนคอมไพล์:\n' + (result.compiler_error || result.compiler_message) + '\n';
+        
+        // Handle compiler errors
+        if (result.buildResult && result.buildResult.code !== 0) {
+            const errs = (result.buildResult.stderr || []).map((e: any) => e.text).join('\n');
+            if (errs) out += '❌ Error/Warning ตอนคอมไพล์:\n' + errs + '\n';
         }
-        if (result.program_output || result.program_message || result.program_error) {
-          out += result.program_output || result.program_message || result.program_error;
+        
+        // Handle runtime errors
+        if (result.code !== 0 && result.code !== undefined) {
+           out += '❌ โปรแกรมทำงานผิดพลาด (Exit code ' + result.code + ')\n';
         }
+        if (result.stderr && result.stderr.length > 0) {
+           out += result.stderr.map((e: any) => e.text).join('\n') + '\n';
+        }
+        
+        // Handle standard output
+        if (result.stdout && result.stdout.length > 0) {
+           out += result.stdout.map((e: any) => e.text).join('\n') + '\n';
+        }
+        
         if (!out) out = '(โปรแกรมทำงานสำเร็จ แต่ไม่มีข้อมูลแสดงผลออกทางหน้าจอ)';
-        updateCodeState(blockId, { running: false, output: out });
+        updateCodeState(blockId, { running: false, output: out.trim() });
       })
       .catch(err => {
         updateCodeState(blockId, {

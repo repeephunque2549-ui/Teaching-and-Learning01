@@ -11,10 +11,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/compile\/coliru/, '')
       },
-      '/api/compile/wandbox': {
-        target: 'https://wandbox.org/api/compile.json',
+      '/api/compile/godbolt': {
+        target: 'https://godbolt.org/api/compiler',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/compile\/wandbox/, '')
+        rewrite: (path) => path.replace(/^\/api\/compile\/godbolt\/(.*)/, '$1/compile')
       }
     }
   },
